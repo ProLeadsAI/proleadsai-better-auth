@@ -266,8 +266,8 @@ export const createBetterAuth = () => betterAuth({
     ...(runtimeConfig.public.appEnv === 'development' ? [openAPI()] : []),
     admin(),
     organization(),
-    // setupStripe(), // Disabled until API key is fixed
-    setupPolar()
+    setupStripe(), // Disabled until API key is fixed
+    // setupPolar()
   ]
 })
 

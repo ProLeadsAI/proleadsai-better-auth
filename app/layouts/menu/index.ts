@@ -69,6 +69,11 @@ export const getUserMenus = (t: TranFunction, localePath: LocalePathFunction, ap
       to: localePath(`/${slug}/dashboard`)
     },
     {
+      label: 'Billing',
+      icon: 'i-lucide-credit-card',
+      to: localePath(`/${slug}/billing`)
+    },
+    {
       label: 'Members',
       icon: 'i-lucide-users',
       to: localePath(`/${slug}/members`)

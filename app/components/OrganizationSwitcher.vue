@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { client, organization, session, useActiveOrganization, fetchSession, user } = useAuth()
+const { client, organization, session, useActiveOrganization, fetchSession, user, activeStripeSubscription } = useAuth()
 
 // Use useAsyncData for SSR prefetching
 const { data: organizations, status } = await useAsyncData('user-organizations', async () => {
@@ -119,7 +119,12 @@ const dropdownItems = computed(() => {
              {{ activeOrgName.charAt(0).toUpperCase() }}
            </div>
            <span class="font-medium text-sm truncate">{{ activeOrgName }}</span>
-           <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500 font-medium">Free</span>
+           <span 
+             class="text-[10px] px-1.5 py-0.5 rounded-full border font-medium"
+             :class="activeStripeSubscription ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400' : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500'"
+           >
+             {{ activeStripeSubscription ? 'Pro' : 'Free' }}
+           </span>
         </div>
         <UIcon name="i-lucide-chevrons-up-down" class="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
       </button>

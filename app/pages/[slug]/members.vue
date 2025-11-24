@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
+import { PLANS } from '~~/shared/utils/plans'
 
 definePageMeta({
   layout: 'dashboard'
@@ -197,11 +198,62 @@ async function removeMember(memberId: string) {
   }
 }
 
+const showUpgradeModal = ref(false)
+const selectedUpgradeInterval = ref<'month' | 'year'>('month')
+
+async function handleUpgrade() {
+  if (!activeOrg.value?.data?.id) return
+  loading.value = true
+  try {
+    const { url } = await $fetch('/api/stripe/create-checkout-session', {
+      method: 'POST',
+      body: {
+        organizationId: activeOrg.value.data.id,
+        slug: activeOrg.value.data.slug,
+        plan: 'pro',
+        interval: selectedUpgradeInterval.value
+      },
+      headers: useRequestHeaders(['cookie'])
+    })
+    
+    if (url) {
+      window.location.href = url
+    }
+  } catch (e: any) {
+    console.error(e)
+    toast.add({
+      title: 'Failed to start checkout',
+      description: e.data?.message || e.message,
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
 // ─────────────────────────────────────────────
 // Invite Member
 // ─────────────────────────────────────────────
 async function inviteMember() {
   if (!inviteEmail.value || !activeOrg.value?.data?.id) return
+
+  // Check member limit (Free plan limit: 3)
+  // TODO: Check actual subscription status. Assuming Free for demo.
+  const currentMemberCount = activeOrg.value.data.members.length
+  const pendingInvitesCount = activeOrg.value.data.invitations.filter(i => i.status === 'pending').length
+  const totalCount = currentMemberCount + pendingInvitesCount
+
+  console.log('Member Check:', { 
+    current: currentMemberCount, 
+    pending: pendingInvitesCount, 
+    total: totalCount 
+  })
+
+  if (totalCount >= 3) {
+    showUpgradeModal.value = true
+    return
+  }
+
   loading.value = true
 
   try {
@@ -411,4 +463,57 @@ async function revokeInvitation(invitationId: string) {
       </UCard>
     </div>
   </div>
+
+  <!-- Upgrade Modal -->
+  <UModal 
+    v-model:open="showUpgradeModal"
+    title="Upgrade to Pro"
+    description="You have reached the limit of 3 members on the Free plan."
+  >
+    <template #body>
+      <div class="space-y-4">
+        <label class="block text-sm font-medium mb-3">Select billing cycle</label>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div 
+            v-for="plan in [PLANS.PRO_MONTHLY, PLANS.PRO_YEARLY]"
+            :key="plan.interval"
+            class="border rounded-lg p-4 cursor-pointer transition-all"
+            :class="selectedUpgradeInterval === plan.interval ? 'border-primary ring-1 ring-primary bg-primary/5' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'"
+            @click="selectedUpgradeInterval = plan.interval as 'month' | 'year'"
+          >
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="font-semibold">{{ plan.label }}</h3>
+              <UIcon v-if="selectedUpgradeInterval === plan.interval" name="i-lucide-check-circle" class="w-5 h-5 text-primary" />
+              <div v-else class="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600"></div>
+            </div>
+            <div class="text-2xl font-bold mb-1">{{ plan.price }} <span class="text-sm font-normal text-muted-foreground">/ {{ plan.interval }}</span></div>
+            <p class="text-xs text-muted-foreground mb-3">{{ plan.description }}</p>
+            
+            <div class="space-y-2">
+              <ul class="text-xs space-y-1.5 text-muted-foreground">
+                <li v-for="(feature, i) in plan.features" :key="i" class="flex items-center gap-2">
+                  <UIcon name="i-lucide-check" class="w-3 h-3 text-green-500" /> {{ feature }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <template #footer>
+      <UButton 
+        color="neutral" 
+        variant="outline" 
+        label="Cancel" 
+        @click="showUpgradeModal = false" 
+      />
+      <UButton 
+        :loading="loading" 
+        label="Upgrade to Pro" 
+        color="primary" 
+        @click="handleUpgrade" 
+      />
+    </template>
+  </UModal>
 </template>

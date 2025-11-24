@@ -74,7 +74,10 @@ export function useAuth() {
     if (user.value) {
       try {
         if (payment == 'stripe') {
-          const { data: subscriptionData } = await client.subscription.list()
+          const activeOrgId = data?.session?.activeOrganizationId
+          const { data: subscriptionData } = await client.subscription.list({
+            query: activeOrgId ? { referenceId: activeOrgId } : undefined
+          })
           subscriptions.value = subscriptionData || []
         } else if (payment == 'polar') {
           const { data: customerState } = await client.customer.state()

@@ -75,7 +75,7 @@ async function createTeam() {
       await organization.setActive({ organizationId: data.id })
       await fetchSession()
       toast.add({ title: 'Team created successfully', color: 'success' })
-      router.push(`/${data.slug}/dashboard`)
+      window.location.href = `/${data.slug}/dashboard`
     }
   } catch (e: any) {
     toast.add({
@@ -108,10 +108,10 @@ async function acceptInvite(inviteId: string, orgId?: string) {
     // Get active org to find slug
     const { data: activeOrg } = await organization.get()
     if (activeOrg) {
-      router.push(`/${activeOrg.slug}/dashboard`)
+      window.location.href = `/${activeOrg.slug}/dashboard`
     } else {
       // Fallback: Go to generic dashboard and let layout handle activation
-      router.push('/t/dashboard')
+      window.location.href = '/t/dashboard'
     }
   } catch (e: any) {
     toast.add({
