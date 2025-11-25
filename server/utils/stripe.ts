@@ -1,42 +1,41 @@
 import type { Subscription } from '@better-auth/stripe'
 import { stripe } from '@better-auth/stripe'
-import { eq, and } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import Stripe from 'stripe'
-import { PLANS } from '../../shared/utils/plans'
-import { organization as organizationTable, member as memberTable } from '../database/schema'
+import { member as memberTable, organization as organizationTable } from '../database/schema'
 import { logAuditEvent } from './auditLogger'
 import { useDB } from './db'
 import { runtimeConfig } from './runtimeConfig'
 
 /**
  * STRIPE ORGANIZATION BILLING IMPLEMENTATION
- * 
+ *
  * 1. Customer Creation:
  *    - Customers are created for ORGANIZATIONS, not Users.
  *    - `ensureStripeCustomer(organizationId)` is called explicitly (e.g. before checkout).
  *    - It fetches the Organization and its Owner (for email).
  *    - It creates a Stripe Customer with metadata `organizationId`.
  *    - The Stripe Customer ID is stored in `organization.stripeCustomerId`.
- * 
+ *
  * 2. Webhook Handling:
  *    - Webhooks are handled by Better Auth's `stripe` plugin.
  *    - The `addPaymentLog` function processes events.
  *    - It retrieves the Organization using `getOrgByStripeCustomerId`.
  *    - Logs are associated with the Organization (via details) and marked as 'system' user actions.
- * 
+ *
  * 3. Metadata:
  *    - `ownerUserId` is stored in metadata to track the initiator.
  *    - `organizationId` is the primary reference.
  */
 
-const createStripeClient = () => {
+export const createStripeClient = () => {
   return new Stripe(runtimeConfig.stripeSecretKey!)
 }
 
 export const ensureStripeCustomer = async (organizationId: string) => {
   const client = createStripeClient()
   const db = await useDB()
-  
+
   const org = await db.query.organization.findFirst({
     where: eq(organizationTable.id, organizationId)
   })
@@ -53,12 +52,12 @@ export const ensureStripeCustomer = async (organizationId: string) => {
   // Fetch Owner for email
   const member = await db.query.member.findFirst({
     where: and(
-      eq(memberTable.organizationId, organizationId), 
+      eq(memberTable.organizationId, organizationId),
       eq(memberTable.role, 'owner')
     ),
     with: { user: true }
   })
-  
+
   const email = member?.user.email
 
   // Create new customer if not exists
@@ -69,7 +68,7 @@ export const ensureStripeCustomer = async (organizationId: string) => {
       ownerUserId: member?.user.id || ''
     }
   }
-  
+
   if (email) {
     customerParams.email = email
   }
@@ -92,25 +91,86 @@ const getOrgByStripeCustomerId = async (stripeCustomerId: string) => {
   return org
 }
 
-const addPaymentLog = async (action: string, subscription: Subscription) => {
-  const org = await getOrgByStripeCustomerId(subscription.stripeCustomerId!)
-  if (!org) return
+export const addPaymentLog = async (action: string, subscription: any) => {
+  // Handle both Better Auth subscription object and raw Stripe subscription object
+  const customerId = subscription.stripeCustomerId ||
+    (typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id)
+
+  if (!customerId)
+    return
+
+  const org = await getOrgByStripeCustomerId(customerId)
+  if (!org)
+    return
 
   await logAuditEvent({
     userId: undefined, // Webhook event, no specific user
     category: 'payment',
-    action: `${action}:${subscription.plan}`,
+    action: `${action}:${subscription.plan?.id || subscription.plan?.name || 'unknown'}`,
     targetType: 'stripeCustomerId',
-    targetId: subscription.stripeCustomerId,
+    targetId: customerId,
     status: 'success',
     details: `Organization: ${org.name} (${org.id})`
   })
 }
 
+export const syncSubscriptionQuantity = async (organizationId: string) => {
+  const db = await useDB()
+  const org = await db.query.organization.findFirst({
+    where: eq(organizationTable.id, organizationId),
+    with: {
+      members: true,
+      invitations: true
+    }
+  })
+
+  if (!org?.stripeCustomerId)
+    return
+
+  const client = createStripeClient()
+
+  // Find active subscription
+  const subscriptions = await client.subscriptions.list({
+    customer: org.stripeCustomerId,
+    status: 'active',
+    limit: 1
+  })
+
+  if (subscriptions.data.length === 0)
+    return
+
+  const subscription = subscriptions.data[0]
+  const currentQuantity = subscription.items.data[0].quantity
+
+  // Calculate new quantity
+  const memberCount = org.members.length
+  const inviteCount = org.invitations.filter(i => i.status === 'pending').length
+  const newQuantity = memberCount + inviteCount
+
+  if (currentQuantity !== newQuantity && newQuantity > 0) {
+    await client.subscriptions.update(subscription.id, {
+      items: [{
+        id: subscription.items.data[0].id,
+        quantity: newQuantity
+      }]
+    })
+
+    await logAuditEvent({
+      userId: undefined,
+      category: 'payment',
+      action: 'update_quantity',
+      targetType: 'subscription',
+      targetId: subscription.id,
+      status: 'success',
+      details: `Updated quantity from ${currentQuantity} to ${newQuantity}`
+    })
+  }
+}
+
 export const setupStripe = () => stripe({
   stripeClient: createStripeClient(),
   stripeWebhookSecret: runtimeConfig.stripeWebhookSecret,
-  onEvent: async (event) => {
+  onEvent: async (_event) => {
     // console.log('Stripe Webhook Received:', event.type, event.id)
   },
   createCustomerOnSignUp: false, // Disable for Org-based billing
@@ -149,42 +209,62 @@ export const setupStripe = () => stripe({
           eq(memberTable.userId, user.id)
         )
       })
-      
+
       if (member?.role === 'owner') {
         // Ensure Stripe Customer exists for the Organization before allowing action
         await ensureStripeCustomer(referenceId)
         return true
       }
-      
+
       return false
     },
-    getCheckoutSessionParams: async ({ user, session, plan, subscription }, ctx) => {
-      // Try to find referenceId from the request body if available
-      let customerId = undefined
+    getCheckoutSessionParams: async ({ session, plan }, ctx) => {
+      // Try to find referenceId from the request body or session
+      let customerId
       const body = ctx?.body as any
-      
-      if (body?.referenceId) {
-          // We need to look up the org by ID
-          const db = await useDB()
-          const organization = await db.query.organization.findFirst({
-              where: eq(organizationTable.id, body.referenceId)
-          })
-          if (organization?.stripeCustomerId) {
-              customerId = organization.stripeCustomerId
+      const activeOrganizationId = (session as any)?.activeOrganizationId
+
+      const targetOrgId = body?.referenceId || activeOrganizationId
+      let quantity = 1
+
+      if (targetOrgId) {
+        // We need to look up the org by ID
+        const db = await useDB()
+        const organization = await db.query.organization.findFirst({
+          where: eq(organizationTable.id, targetOrgId),
+          with: {
+            members: true,
+            invitations: true
           }
+        })
+        if (organization) {
+          if (organization.stripeCustomerId) {
+            customerId = organization.stripeCustomerId
+          }
+          // Calculate quantity: Members + Pending Invites
+          // Default to 1 if count is 0 (should be at least 1 owner)
+          const memberCount = organization.members.length
+          const inviteCount = organization.invitations.filter(i => i.status === 'pending').length
+          const count = memberCount + inviteCount
+          quantity = count > 0 ? count : 1
+        }
       }
 
       return {
         params: {
           customer: customerId, // Explicitly set the Org's customer ID
           allow_promotion_codes: true,
+          line_items: [{
+            price: plan.priceId,
+            quantity
+          }],
           tax_id_collection: {
             enabled: true
           },
           billing_address_collection: 'required',
           metadata: {
-             // Ensure metadata is preserved/set
-             ...(body?.metadata || {})
+            // Ensure metadata is preserved/set
+            ...(body?.metadata || {})
           }
         }
       }

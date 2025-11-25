@@ -4,13 +4,12 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError, createAuthMiddleware } from 'better-auth/api'
 import { admin, openAPI, organization } from 'better-auth/plugins'
-import { eq, and } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '../database/schema'
 import { logAuditEvent } from './auditLogger'
 import { getDB } from './db'
 import { cacheClient, resendInstance } from './drivers'
-import { setupPolar } from './polar'
 import { runtimeConfig } from './runtimeConfig'
 import { setupStripe } from './stripe'
 
@@ -64,16 +63,16 @@ export const createBetterAuth = () => betterAuth({
       create: {
         before: async (session) => {
           const db = getDB()
-          
+
           // 1. Try to get user's last active org
           const users = await db
             .select()
             .from(schema.user)
             .where(eq(schema.user.id, session.userId))
             .limit(1)
-            
+
           let activeOrgId = users[0]?.lastActiveOrganizationId
-          
+
           // 2. Verify user is still a member of that org
           if (activeOrgId) {
             const member = await db
@@ -84,8 +83,9 @@ export const createBetterAuth = () => betterAuth({
                 eq(schema.member.organizationId, activeOrgId)
               ))
               .limit(1)
-              
-            if (member.length === 0) activeOrgId = null
+
+            if (member.length === 0)
+              activeOrgId = null
           }
 
           // 3. Fallback to first organization
@@ -95,8 +95,9 @@ export const createBetterAuth = () => betterAuth({
               .from(schema.member)
               .where(eq(schema.member.userId, session.userId))
               .limit(1)
-            
-            if (members.length > 0) activeOrgId = members[0].organizationId
+
+            if (members.length > 0)
+              activeOrgId = members[0].organizationId
           }
 
           if (activeOrgId) {
@@ -118,6 +119,30 @@ export const createBetterAuth = () => betterAuth({
               .set({ lastActiveOrganizationId: activeOrgId })
               .where(eq(schema.user.id, session.userId))
           }
+        }
+      }
+    },
+    member: {
+      create: {
+        after: async (_member: any) => {
+          // await syncSubscriptionQuantity(member.organizationId)
+        }
+      },
+      delete: {
+        after: async (_member: any) => {
+          // await syncSubscriptionQuantity(member.organizationId)
+        }
+      }
+    },
+    invitation: {
+      create: {
+        after: async (_invitation: any) => {
+          // await syncSubscriptionQuantity(invitation.organizationId)
+        }
+      },
+      delete: {
+        after: async (_invitation: any) => {
+          // await syncSubscriptionQuantity(invitation.organizationId)
         }
       }
     }
@@ -266,7 +291,7 @@ export const createBetterAuth = () => betterAuth({
     ...(runtimeConfig.public.appEnv === 'development' ? [openAPI()] : []),
     admin(),
     organization(),
-    setupStripe(), // Disabled until API key is fixed
+    setupStripe() // Disabled until API key is fixed
     // setupPolar()
   ]
 })

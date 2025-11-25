@@ -5,6 +5,8 @@ export const PLANS = {
     label: 'Monthly',
     price: '$14.99',
     priceNumber: 14.99,
+    seatPrice: '$5.00',
+    seatPriceNumber: 5.00,
     description: 'Billed monthly',
     trialDays: 14,
     features: [
@@ -21,6 +23,8 @@ export const PLANS = {
     label: 'Yearly',
     price: '$99.99',
     priceNumber: 99.99,
+    seatPrice: '$50.00',
+    seatPriceNumber: 50.00,
     description: 'Billed yearly (Save ~45%)',
     trialDays: 14,
     features: [
