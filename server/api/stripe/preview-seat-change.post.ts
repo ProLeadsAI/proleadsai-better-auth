@@ -2,7 +2,6 @@ import { and, eq } from 'drizzle-orm'
 import { member as memberTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/database/schema'
 import { getAuthSession } from '~~/server/utils/auth'
 import { useDB } from '~~/server/utils/db'
-import { runtimeConfig } from '~~/server/utils/runtimeConfig'
 import { createStripeClient } from '~~/server/utils/stripe'
 import { PLANS } from '~~/shared/utils/plans'
 
@@ -120,8 +119,8 @@ export default defineEventHandler(async (event) => {
   let newPriceId
   if (newInterval) {
     newPriceId = newInterval === 'month'
-      ? runtimeConfig.stripePriceIdProMonth
-      : runtimeConfig.stripePriceIdProYear
+      ? PLANS.PRO_MONTHLY.priceId
+      : PLANS.PRO_YEARLY.priceId
   }
 
   const subscriptionItemId = subscription.items.data[0].id
@@ -131,6 +130,15 @@ export default defineEventHandler(async (event) => {
   // Use Stripe SDK v20 - createPreview supports flexible billing mode
   let upcomingInvoice
   try {
+    console.log('[preview-seat-change] Creating preview with:', {
+      subscriptionId: subscription.id,
+      subscriptionItemId,
+      seats,
+      priceId,
+      newInterval,
+      currentPriceId: currentItem.price.id
+    })
+
     upcomingInvoice = await stripe.invoices.createPreview({
       subscription: subscription.id,
       subscription_details: {
@@ -144,7 +152,16 @@ export default defineEventHandler(async (event) => {
         ]
       }
     })
-    console.log('Stripe preview invoice:', upcomingInvoice.amount_due)
+
+    console.log('[preview-seat-change] Stripe preview result:', {
+      amount_due: upcomingInvoice.amount_due,
+      total: upcomingInvoice.total,
+      subtotal: upcomingInvoice.subtotal,
+      lines: upcomingInvoice.lines.data.map(l => ({
+        description: l.description,
+        amount: l.amount
+      }))
+    })
   } catch (e: any) {
     console.error('Stripe Invoice Preview Error:', e)
     throw createError({
@@ -153,12 +170,19 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // For yearly upgrades, the next billing date is 1 year from now (not the current period end)
+  let periodEnd = upcomingInvoice.period_end
+  if (newInterval === 'year') {
+    // When upgrading to yearly, next charge is 1 year from today
+    periodEnd = Math.floor(Date.now() / 1000) + 31536000 // 365 days in seconds
+  }
+
   return {
     amountDue: upcomingInvoice.amount_due,
     total: upcomingInvoice.total,
     subtotal: upcomingInvoice.subtotal,
     currency: upcomingInvoice.currency,
-    periodEnd: upcomingInvoice.period_end,
+    periodEnd,
     lines: upcomingInvoice.lines.data
   }
 })

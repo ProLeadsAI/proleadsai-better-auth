@@ -46,8 +46,8 @@ export const PLANS = {
     key: 'pro',
     interval: 'month',
     label: 'Monthly',
-    priceNumber: 19.99,
-    seatPriceNumber: 10.00,
+    priceNumber: 11.99,
+    seatPriceNumber: 5.99,
     description: 'Billed monthly',
     trialDays: 14,
     features: [
@@ -64,8 +64,8 @@ export const PLANS = {
     key: 'pro',
     interval: 'year',
     label: 'Yearly',
-    priceNumber: 199.99,
-    seatPriceNumber: 50.00,
+    priceNumber: 229.99,
+    seatPriceNumber: 44.44,
     description: 'Billed yearly (Save ~45%)',
     trialDays: 14,
     features: [

@@ -59,6 +59,13 @@ const currentSubPlanConfig = computed(() => {
   return match
 })
 
+const nextChargeDate = computed(() => {
+  if ((activeStripeSubscription.value as any)?.periodEnd) {
+    return new Date((activeStripeSubscription.value as any).periodEnd).toLocaleDateString()
+  }
+  return null
+})
+
 // Helper to get the correct plan config for calculations
 const getPlanConfigForInterval = (interval: 'month' | 'year') => {
   // If user is already on a plan matching the interval, use their specific config (preserves legacy pricing)
@@ -669,7 +676,7 @@ async function revokeInvitation(invitationId: string) {
     </div>
 
     <!-- Upgrade Modal -->
-    <UpgradeModal
+    <BillingUpgradeModal
       v-model:open="showUpgradeModal"
       reason="invite"
       :organization-id="activeOrg?.data?.id"
@@ -708,85 +715,15 @@ async function revokeInvitation(invitationId: string) {
           </div>
         </div>
 
-        <div
+        <BillingSeatChangePreview
           v-if="addSeatPreview"
-          class="space-y-4 text-sm"
-        >
-          <!-- Comparison View -->
-          <div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center text-center bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-            <div>
-              <div class="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">
-                Current
-              </div>
-              <div class="font-semibold text-lg">
-                {{ (activeStripeSubscription?.seats || 1) }} Seats
-              </div>
-              <div class="text-muted-foreground">
-                ${{ (
-                  getPlanConfigForInterval(seatInterval).priceNumber
-                  + (Math.max(0, (activeStripeSubscription?.seats || 1) - 1) * getPlanConfigForInterval(seatInterval).seatPriceNumber)
-                ).toFixed(2) }}/{{ seatInterval === 'year' ? 'yr' : 'mo' }}
-              </div>
-            </div>
-
-            <UIcon
-              name="i-lucide-arrow-right"
-              class="w-6 h-6 text-gray-400"
-            />
-
-            <div>
-              <div class="text-xs text-primary uppercase font-bold tracking-wider mb-1">
-                New
-              </div>
-              <div class="font-semibold text-lg text-primary">
-                {{ (activeStripeSubscription?.seats || 1) + 1 }} Seats
-              </div>
-              <div class="text-primary font-medium">
-                ${{ (
-                  getPlanConfigForInterval(seatInterval).priceNumber
-                  + ((activeStripeSubscription?.seats || 1) * getPlanConfigForInterval(seatInterval).seatPriceNumber)
-                ).toFixed(2) }}/{{ seatInterval === 'year' ? 'yr' : 'mo' }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Breakdown Details -->
-          <div class="text-xs text-muted-foreground space-y-1 px-1">
-            <div class="flex justify-between">
-              <span>Base Plan (Includes 1 Seat):</span>
-              <span>${{ getPlanConfigForInterval(seatInterval).priceNumber.toFixed(2) }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span>Additional Seats ({{ (activeStripeSubscription?.seats || 1) }} x ${{ getPlanConfigForInterval(seatInterval).seatPriceNumber.toFixed(2) }}):</span>
-              <span>${{ ((activeStripeSubscription?.seats || 1) * getPlanConfigForInterval(seatInterval).seatPriceNumber).toFixed(2) }}</span>
-            </div>
-          </div>
-
-          <div
-            v-if="activeStripeSubscription?.status !== 'trialing'"
-            class="flex justify-between pt-2 items-center"
-          >
-            <div>
-              <div class="text-muted-foreground">
-                Prorated amount due now:
-              </div>
-              <div
-                v-if="addSeatPreview.periodEnd"
-                class="text-xs text-muted-foreground/70"
-              >
-                New rate starts on {{ new Date(addSeatPreview.periodEnd * 1000).toLocaleDateString() }}
-              </div>
-            </div>
-            <span class="font-bold text-primary">${{ (addSeatPreview.amountDue / 100).toFixed(2) }}</span>
-          </div>
-          <div
-            v-else
-            class="flex justify-between pt-2"
-          >
-            <span class="text-muted-foreground">Amount due now (End Trial):</span>
-            <span class="font-bold text-primary">${{ (addSeatPreview.amountDue / 100).toFixed(2) }}</span>
-          </div>
-        </div>
+          :current-seats="activeStripeSubscription?.seats || 1"
+          :target-seats="(activeStripeSubscription?.seats || 1) + 1"
+          :plan-config="getPlanConfigForInterval(seatInterval)"
+          :preview="addSeatPreview"
+          :next-charge-date="nextChargeDate"
+          :is-trialing="isEndingTrial"
+        />
 
         <div
           v-else-if="errorMessage"

@@ -12,6 +12,25 @@ Very small Nuxt-based SaaS starter I’m using for my own project.
   - Switching from monthly to yearly moves users onto the current standard yearly price.  
   - **Stripe-only**: billing is implemented against Stripe subscriptions/prices and expects Stripe webhooks to keep local subscription state in sync.
 
+- **Detailed Billing Previews**  
+  - **Seat Change Preview**: Before adding or removing seats, users see a detailed breakdown showing current vs. new pricing, prorated charges, and credits for unused time.  
+  - **Plan Switch Preview**: When upgrading from monthly to yearly, users see the full payment breakdown including any credit for unused monthly time, the yearly plan cost, and the final prorated amount due.  
+  - **Trial Ending Notices**: Clear messaging when adding team members will end a trial, explaining why payment is required.
+
+- **Invoice History**  
+  - Lazy-loaded invoice history component on the billing page.  
+  - Shows last 3 invoices by default with "Show more" pagination.  
+  - Each invoice displays: invoice number, status badge (paid/open/draft), date, amount, and quick links to view or download PDF.  
+  - Automatically refreshes after seat changes or plan switches to show new payments.
+
+- **Declined Card Handling**  
+  - Uses Stripe's `payment_behavior: 'error_if_incomplete'` to fail fast without leaving subscriptions in a broken state.  
+  - When a payment fails during seat changes or plan switches, the subscription remains unchanged.  
+  - User sees a toast notification explaining the card was declined.  
+  - An "Update Payment Method" button appears in the modal, linking to the Stripe Customer Portal.  
+  - Billing page shows a prominent red warning banner when subscription is `past_due`, warning that Pro access and team members will be lost if not resolved.  
+  - "Manage Payment Method" button on billing page opens Stripe's hosted portal for secure card updates.
+
 - **Organizations & Limits**  
   - First team gets **one free organization**.  
   - Every additional organization requires its own Pro subscription.  

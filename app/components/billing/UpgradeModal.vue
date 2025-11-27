@@ -18,6 +18,41 @@ const selectedInterval = ref<'month' | 'year'>('month')
 const loading = ref(false)
 const toast = useToast()
 
+// Check if there's a past_due subscription that needs fixing
+const { useActiveOrganization } = useAuth()
+const activeOrg = useActiveOrganization()
+
+const hasPastDueSubscription = computed(() => {
+  const subs = (activeOrg.value?.data as any)?.subscriptions || []
+  return subs.some((s: any) => s.status === 'past_due')
+})
+
+const hasUsedTrial = computed(() => {
+  const subs = (activeOrg.value?.data as any)?.subscriptions || []
+  return subs.some((s: any) => s.trialStart || s.trialEnd || s.status === 'trialing')
+})
+
+// Open billing portal to fix payment
+async function openBillingPortal() {
+  if (!props.organizationId)
+    return
+  loading.value = true
+  try {
+    const { url } = await $fetch('/api/stripe/portal', {
+      method: 'POST',
+      body: { organizationId: props.organizationId }
+    })
+    if (url) {
+      window.location.href = url
+    }
+  } catch (e) {
+    console.error('Failed to open billing portal:', e)
+    toast.add({ title: 'Failed to open billing portal', color: 'error' })
+  } finally {
+    loading.value = false
+  }
+}
+
 const title = computed(() => {
   return 'Upgrade to Pro'
 })
@@ -78,12 +113,39 @@ async function handleUpgrade() {
 <template>
   <UModal
     :open="open"
-    :title="title"
-    :description="description"
+    :title="hasPastDueSubscription ? 'Payment Required' : title"
+    :description="hasPastDueSubscription ? 'Your subscription has a payment issue' : description"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
-      <div class="space-y-4">
+      <!-- Past Due - Show fix payment UI -->
+      <div
+        v-if="hasPastDueSubscription"
+        class="space-y-4"
+      >
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <UIcon
+              name="i-lucide-alert-triangle"
+              class="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5"
+            />
+            <div>
+              <h3 class="font-semibold text-red-800 dark:text-red-200">
+                Payment Failed
+              </h3>
+              <p class="text-sm text-red-700 dark:text-red-300 mt-1">
+                Your last payment was declined. Please update your payment method to continue using Pro features.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Normal upgrade UI -->
+      <div
+        v-else
+        class="space-y-4"
+      >
         <p class="text-sm text-muted-foreground">
           {{ message }}
         </p>
@@ -148,7 +210,10 @@ async function handleUpgrade() {
                 <span class="text-sm font-normal text-muted-foreground">/ {{ plan.interval }}</span>
               </div>
               <p class="text-xs text-muted-foreground mb-3">
-                <span class="font-semibold text-green-600 dark:text-green-400">{{ plan.trialDays }}-day free trial</span><br>
+                <span
+                  v-if="!hasUsedTrial"
+                  class="font-semibold text-green-600 dark:text-green-400"
+                >{{ plan.trialDays }}-day free trial<br></span>
                 Base Plan (${{ plan.priceNumber.toFixed(2) }}).<br>
                 Each additional member adds ${{ (plan.seatPriceNumber || 0).toFixed(2) }}/{{ plan.interval === 'year' ? 'yr' : 'mo' }}.
               </p>
@@ -180,8 +245,19 @@ async function handleUpgrade() {
         variant="outline"
         @click="emit('update:open', false)"
       />
+      <!-- Past due - show fix payment button -->
       <UButton
-        label="Upgrade to Pro"
+        v-if="hasPastDueSubscription"
+        label="Update Payment Method"
+        color="red"
+        icon="i-lucide-credit-card"
+        :loading="loading"
+        @click="openBillingPortal"
+      />
+      <!-- Normal upgrade button -->
+      <UButton
+        v-else
+        :label="hasUsedTrial ? 'Upgrade to Pro' : 'Start Free Trial'"
         color="primary"
         :loading="loading"
         @click="handleUpgrade"

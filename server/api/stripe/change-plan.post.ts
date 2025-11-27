@@ -98,14 +98,34 @@ export default defineEventHandler(async (event) => {
       price: newPriceId,
       quantity
     }],
-    proration_behavior: 'always_invoice'
+    proration_behavior: 'always_invoice',
+    payment_behavior: 'error_if_incomplete' // Fail fast if payment fails, don't leave subscription in bad state
   }
 
   if (subscription.status === 'trialing') {
     updateParams.trial_end = 'now'
   }
 
-  const updatedSub = await stripe.subscriptions.update(subscription.id, updateParams)
+  let updatedSub: any
+  try {
+    updatedSub = await stripe.subscriptions.update(subscription.id, updateParams)
+  } catch (stripeError: any) {
+    console.error('[change-plan] Stripe error:', stripeError.message)
+
+    // Check if it's a card/payment error
+    if (stripeError.type === 'StripeCardError' || stripeError.code === 'card_declined') {
+      throw createError({
+        statusCode: 402,
+        statusMessage: 'Your card was declined. Please update your payment method.'
+      })
+    }
+
+    // Re-throw other errors
+    throw createError({
+      statusCode: 500,
+      statusMessage: stripeError.message || 'Failed to change plan'
+    })
+  }
 
   // Update local database immediately
   const updateData: any = {

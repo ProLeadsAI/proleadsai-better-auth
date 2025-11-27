@@ -3,7 +3,7 @@ import Stripe from 'stripe'
 import { member as memberTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/database/schema'
 import { getAuthSession } from '~~/server/utils/auth'
 import { useDB } from '~~/server/utils/db'
-import { runtimeConfig } from '~~/server/utils/runtimeConfig'
+import { PLANS } from '~~/shared/utils/plans'
 
 export default defineEventHandler(async (event) => {
   const session = await getAuthSession(event)
@@ -78,8 +78,8 @@ export default defineEventHandler(async (event) => {
   let newPriceId
   if (newInterval) {
     newPriceId = newInterval === 'month'
-      ? runtimeConfig.stripePriceIdProMonth
-      : runtimeConfig.stripePriceIdProYear
+      ? PLANS.PRO_MONTHLY.priceId
+      : PLANS.PRO_YEARLY.priceId
   }
 
   const subscriptionItemId = subscription.items.data[0].id
@@ -91,14 +91,34 @@ export default defineEventHandler(async (event) => {
       quantity: seats,
       ...(newPriceId ? { price: newPriceId } : {})
     }],
-    proration_behavior: 'always_invoice'
+    proration_behavior: 'always_invoice',
+    payment_behavior: 'error_if_incomplete' // This will throw an error if payment fails instead of leaving subscription in bad state
   }
 
   if (endTrial) {
     updateParams.trial_end = 'now'
   }
 
-  const updatedSubscription = await stripe.subscriptions.update(subscription.id, updateParams) as any
+  let updatedSubscription: any
+  try {
+    updatedSubscription = await stripe.subscriptions.update(subscription.id, updateParams)
+  } catch (stripeError: any) {
+    console.error('[update-seats] Stripe error:', stripeError.message)
+
+    // Check if it's a card/payment error
+    if (stripeError.type === 'StripeCardError' || stripeError.code === 'card_declined') {
+      throw createError({
+        statusCode: 402,
+        statusMessage: 'Your card was declined. Please update your payment method.'
+      })
+    }
+
+    // Re-throw other errors
+    throw createError({
+      statusCode: 500,
+      statusMessage: stripeError.message || 'Failed to update subscription'
+    })
+  }
 
   console.log('[update-seats] Stripe Updated Raw:', {
     id: updatedSubscription.id,
