@@ -208,9 +208,6 @@ watch(newTeamSlug, (newSlug) => {
 onMounted(async () => {
   window.addEventListener('open-create-team-modal', handleOpenCreateModal)
 
-  // Prefetch owned count for smoother UI
-  fetchOwnedCount()
-
   // Organization sync is now handled by app/middleware/organization.global.ts
 })
 

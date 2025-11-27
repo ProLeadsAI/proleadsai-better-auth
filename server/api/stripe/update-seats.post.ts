@@ -98,17 +98,22 @@ export default defineEventHandler(async (event) => {
     updateParams.trial_end = 'now'
   }
 
-  const updatedSubscription = await stripe.subscriptions.update(subscription.id, updateParams)
+  const updatedSubscription = await stripe.subscriptions.update(subscription.id, updateParams) as any
 
-  console.log('[update-seats] Stripe Updated:', {
+  console.log('[update-seats] Stripe Updated Raw:', {
     id: updatedSubscription.id,
-    status: updatedSubscription.status,
-    cancel_at_period_end: updatedSubscription.cancel_at_period_end
+    current_period_end: updatedSubscription.current_period_end,
+    status: updatedSubscription.status
   })
 
   // Update local database immediately
+  const periodEnd = updatedSubscription.current_period_end
+    ? new Date(updatedSubscription.current_period_end * 1000)
+    : undefined
+
   const updateData: any = {
-    seats: updatedSubscription.items.data[0].quantity
+    seats: updatedSubscription.items?.data?.[0]?.quantity || seats,
+    periodEnd: (periodEnd && !Number.isNaN(periodEnd.getTime())) ? periodEnd : undefined
   }
 
   if (endTrial || updatedSubscription.status === 'active') {

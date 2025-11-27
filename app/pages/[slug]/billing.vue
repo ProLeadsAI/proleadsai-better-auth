@@ -56,6 +56,22 @@ onMounted(async () => {
     // Clear the success param to clean up URL
     const newQuery = { ...route.query }
     delete newQuery.success
+
+    // Handle redirect if present
+    const redirectUrl = newQuery.redirect
+    if (redirectUrl) {
+      delete newQuery.redirect
+      const target = decodeURIComponent(redirectUrl as string)
+
+      if (target.startsWith('http')) {
+        window.location.href = target
+        return
+      } else {
+        router.push(target)
+        return
+      }
+    }
+
     router.replace({ query: newQuery })
 
     toast.add({
@@ -187,11 +203,13 @@ async function handleUpgrade() {
   try {
     const planName = billingInterval.value === 'month' ? 'pro-monthly' : 'pro-yearly'
 
+    const redirectParam = route.query.redirect ? `&redirect=${route.query.redirect}` : ''
+
     const { error } = await stripeSubscription.upgrade({
       plan: planName,
       referenceId: activeOrg.value.data.id,
-      successUrl: `${window.location.origin}/${activeOrg.value.data.slug}/billing?success=true`,
-      cancelUrl: `${window.location.origin}/${activeOrg.value.data.slug}/billing?canceled=true`,
+      successUrl: `${window.location.origin}/${activeOrg.value.data.slug}/billing?success=true${redirectParam}`,
+      cancelUrl: `${window.location.origin}/${activeOrg.value.data.slug}/billing?canceled=true${redirectParam}`,
       metadata: {
         organizationId: activeOrg.value.data.id
       }
@@ -429,8 +447,7 @@ async function confirmSeatChange() {
       }
     })
     showSeatChangeModal.value = false
-    await refresh()
-    // Reset target seats to new value
+    window.location.reload()
   } catch (e: any) {
     console.error(e)
     // eslint-disable-next-line no-alert
