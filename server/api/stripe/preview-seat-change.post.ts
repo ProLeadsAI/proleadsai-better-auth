@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { member as memberTable, organization as organizationTable } from '~~/server/database/schema'
+import { member as memberTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/database/schema'
 import { getAuthSession } from '~~/server/utils/auth'
 import { useDB } from '~~/server/utils/db'
 import { runtimeConfig } from '~~/server/utils/runtimeConfig'
@@ -75,8 +75,30 @@ export default defineEventHandler(async (event) => {
 
   // If currently trialing, calculate locally and return immediately (No Proration/Stripe API needed)
   if (subscription.status === 'trialing') {
-    const interval = newInterval || subscription.plan.interval
-    const planConfig = interval === 'year' ? PLANS.PRO_YEARLY : PLANS.PRO_MONTHLY
+    const interval = newInterval || (subscription as any).plan.interval
+
+    // Find the correct plan config to support Legacy Pricing
+    // We must check the LOCAL database to see which Plan Version (V1, V2, V3) the user is on,
+    // because they might share the same Stripe Price ID.
+    const localSub = await db.query.subscription.findFirst({
+      where: eq(subscriptionTable.stripeSubscriptionId, subscription.id)
+    })
+
+    let planConfig
+    if (localSub && localSub.plan) {
+      planConfig = Object.values(PLANS).find(p => p.id === localSub.plan)
+    }
+
+    // If not found in DB (or switching interval), fallback to checking Stripe Price ID match
+    // This handles cases where DB might be out of sync or missing
+    if (!planConfig) {
+      planConfig = Object.values(PLANS).find(p => p.priceId === (subscription as any).plan.id)
+    }
+
+    // If STILL not found (or switching interval), fallback to the standard plan for that interval
+    if (!planConfig || planConfig.interval !== interval) {
+      planConfig = interval === 'year' ? PLANS.PRO_YEARLY : PLANS.PRO_MONTHLY
+    }
 
     // Calculate total: Base Price + (Additional Seats * Seat Price)
     // Base Plan covers 1st seat. Additional seats = seats - 1.

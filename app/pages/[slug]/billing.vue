@@ -13,7 +13,7 @@ const loading = ref(false)
 const billingInterval = ref<'month' | 'year'>('month')
 const route = useRoute()
 const showDowngradeModal = ref(false)
-const downgradeData = ref<{ membersToRemove: any[], nextChargeDate: string }>({ membersToRemove: [], nextChargeDate: '' })
+const downgradeData = ref<{ membersToRemove: any[], nextChargeDate: string, legacyWarning?: string | null }>({ membersToRemove: [], nextChargeDate: '' })
 const showUpgradeModal = ref(false)
 
 // Show upgrade modal if showUpgrade query param is present
@@ -119,6 +119,16 @@ const activePlan = computed(() => {
   return billingInterval.value === 'month' ? PLANS.PRO_MONTHLY : PLANS.PRO_YEARLY
 })
 
+// Find the config for the user's actual current plan
+const currentSubPlanConfig = computed(() => {
+  if (!activeSub.value)
+    return null
+  // Try to find exact match in PLANS by ID
+  const match = Object.values(PLANS).find(p => p.id === activeSub.value?.plan)
+  // Fallback to activePlan (current public plan) if legacy plan not found in config
+  return match || activePlan.value
+})
+
 const currentPlan = computed(() => {
   if (activeSub.value) {
     return 'pro'
@@ -155,7 +165,10 @@ const costBreakdown = computed(() => {
   if (!activeSub.value)
     return null
 
-  const plan = activePlan.value
+  const plan = currentSubPlanConfig.value
+  if (!plan)
+    return null // Added safety check
+
   const seats = activeSub.value.seats || 1
   const additionalSeats = Math.max(0, seats - 1)
 
@@ -201,7 +214,7 @@ async function handleUpgrade() {
 
   loading.value = true
   try {
-    const planName = billingInterval.value === 'month' ? 'pro-monthly' : 'pro-yearly'
+    const planName = billingInterval.value === 'month' ? PLANS.PRO_MONTHLY.id : PLANS.PRO_YEARLY.id
 
     const redirectParam = route.query.redirect ? `&redirect=${route.query.redirect}` : ''
 
@@ -290,6 +303,18 @@ async function cancelSubscription() {
     }
 
     downgradeData.value.nextChargeDate = nextChargeDate.value || 'the end of your billing cycle'
+    // Check for legacy pricing warning
+    const currentPlanConfig = currentSubPlanConfig.value
+    const latestPlanConfig = activePlan.value // This is the V2/current plan
+
+    if (currentPlanConfig && latestPlanConfig && currentPlanConfig.priceNumber < latestPlanConfig.priceNumber) {
+      const currentPrice = `$${currentPlanConfig.priceNumber.toFixed(2)}`
+      const latestPrice = `$${latestPlanConfig.priceNumber.toFixed(2)}`
+      downgradeData.value.legacyWarning = `Warning: You are currently on a legacy plan (${currentPrice}). If you downgrade, re-subscribing later will cost the new rate of ${latestPrice}.`
+    } else {
+      downgradeData.value.legacyWarning = null
+    }
+
     loading.value = false
     showDowngradeModal.value = true
   } catch (e) {
@@ -316,7 +341,7 @@ async function confirmDowngrade() {
     })
 
     // Refresh subscription data to update UI
-    await refresh()
+    window.location.reload()
   } catch (e: any) {
     console.error(e)
     // eslint-disable-next-line no-alert
@@ -632,10 +657,10 @@ async function confirmPlanChange() {
           </div>
 
           <div
-            v-if="activeSub?.status === 'trialing' && trialInfo"
+            v-if="activeSub?.status === 'trialing' && trialInfo && costBreakdown"
             class="text-sm text-muted-foreground mt-1"
           >
-            Free trial ends on {{ trialInfo.endDate }}. You will be charged {{ activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.price : PLANS.PRO_MONTHLY.price }} on that date.
+            Free trial ends on {{ trialInfo.endDate }}. You will be charged ${{ costBreakdown.totalCost.toFixed(2) }} on that date.
           </div>
           <div
             v-else-if="currentPlan === 'pro' && nextChargeDate && !isCanceled"
@@ -874,9 +899,9 @@ async function confirmPlanChange() {
               </div>
               <div class="text-muted-foreground">
                 ${{ (
-                  (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.priceNumber : PLANS.PRO_MONTHLY.priceNumber)
-                  + (Math.max(0, (activeSub?.seats || 1) - 1) * (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber))
-                ).toFixed(2) }}/{{ activeSub?.plan?.includes('year') ? 'yr' : 'mo' }}
+                  (currentSubPlanConfig?.priceNumber || 0)
+                  + (Math.max(0, (activeSub?.seats || 1) - 1) * (currentSubPlanConfig?.seatPriceNumber || 0))
+                ).toFixed(2) }}/{{ currentSubPlanConfig?.interval }}
               </div>
             </div>
 
@@ -985,9 +1010,9 @@ async function confirmPlanChange() {
 
             <span v-if="targetSeats < (activeSub?.seats || 1)">
               Your new rate will be <strong>${{ (
-                (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.priceNumber : PLANS.PRO_MONTHLY.priceNumber)
-                + ((targetSeats - 1) * (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber))
-              ).toFixed(2) }}/{{ activeSub?.plan?.includes('year') ? 'yr' : 'mo' }}</strong> starting on {{ new Date(seatChangePreview.periodEnd * 1000).toLocaleDateString() }}.
+                (currentSubPlanConfig?.priceNumber || 0)
+                + ((targetSeats - 1) * (currentSubPlanConfig?.seatPriceNumber || 0))
+              ).toFixed(2) }}/{{ currentSubPlanConfig?.interval }}</strong> starting on {{ new Date(seatChangePreview.periodEnd * 1000).toLocaleDateString() }}.
             </span>
           </p>
 
@@ -1003,9 +1028,9 @@ async function confirmPlanChange() {
               </div>
               <div class="text-muted-foreground">
                 ${{ (
-                  (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.priceNumber : PLANS.PRO_MONTHLY.priceNumber)
-                  + (Math.max(0, (activeSub?.seats || 1) - 1) * (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber))
-                ).toFixed(2) }}/{{ activeSub?.plan?.includes('year') ? 'yr' : 'mo' }}
+                  (currentSubPlanConfig?.priceNumber || 0)
+                  + (Math.max(0, (activeSub?.seats || 1) - 1) * (currentSubPlanConfig?.seatPriceNumber || 0))
+                ).toFixed(2) }}/{{ currentSubPlanConfig?.interval }}
               </div>
             </div>
 
@@ -1023,9 +1048,9 @@ async function confirmPlanChange() {
               </div>
               <div class="text-primary font-medium">
                 ${{ (
-                  (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.priceNumber : PLANS.PRO_MONTHLY.priceNumber)
-                  + ((targetSeats - 1) * (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber))
-                ).toFixed(2) }}/{{ activeSub?.plan?.includes('year') ? 'yr' : 'mo' }}
+                  (currentSubPlanConfig?.priceNumber || 0)
+                  + ((targetSeats - 1) * (currentSubPlanConfig?.seatPriceNumber || 0))
+                ).toFixed(2) }}/{{ currentSubPlanConfig?.interval }}
               </div>
             </div>
           </div>
@@ -1034,14 +1059,14 @@ async function confirmPlanChange() {
           <div class="text-xs text-muted-foreground space-y-1 px-1">
             <div class="flex justify-between">
               <span>Base Plan (1st Seat):</span>
-              <span>${{ (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.priceNumber : PLANS.PRO_MONTHLY.priceNumber).toFixed(2) }}</span>
+              <span>${{ (currentSubPlanConfig?.priceNumber || 0).toFixed(2) }}</span>
             </div>
             <div
               v-if="targetSeats > 1"
               class="flex justify-between"
             >
-              <span>Additional Seats ({{ targetSeats - 1 }} x ${{ (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber).toFixed(2) }}):</span>
-              <span>${{ ((targetSeats - 1) * (activeSub?.plan?.includes('year') ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber)).toFixed(2) }}</span>
+              <span>Additional Seats ({{ targetSeats - 1 }} x ${{ (currentSubPlanConfig?.seatPriceNumber || 0).toFixed(2) }}):</span>
+              <span>${{ ((targetSeats - 1) * (currentSubPlanConfig?.seatPriceNumber || 0)).toFixed(2) }}</span>
             </div>
           </div>
 
@@ -1103,6 +1128,17 @@ async function confirmPlanChange() {
     >
       <template #body>
         <div class="space-y-4">
+          <div
+            v-if="downgradeData.legacyWarning"
+            class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm text-amber-800 dark:text-amber-200 flex gap-2 items-start"
+          >
+            <UIcon
+              name="i-lucide-trending-up"
+              class="w-5 h-5 shrink-0 mt-0.5"
+            />
+            <span>{{ downgradeData.legacyWarning }}</span>
+          </div>
+
           <p class="text-sm">
             Your subscription will be canceled.
           </p>
@@ -1159,19 +1195,6 @@ async function confirmPlanChange() {
             <p class="text-xs text-amber-700 dark:text-amber-300 pt-2 border-t border-amber-200 dark:border-amber-700">
               {{ downgradeData.membersToRemove.length > 1 ? 'These users' : 'This user' }} will lose access to this organization on {{ downgradeData.nextChargeDate }}.
             </p>
-          </div>
-
-          <div
-            v-else
-            class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3"
-          >
-            <div class="flex items-center gap-2 text-sm text-green-800 dark:text-green-200">
-              <UIcon
-                name="i-lucide-check-circle"
-                class="w-4 h-4 text-green-600 dark:text-green-400"
-              />
-              <span>No members will be removed. Your team has 1 member, which fits within the Free plan limit.</span>
-            </div>
           </div>
         </div>
       </template>

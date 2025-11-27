@@ -21,8 +21,9 @@ export function useAuth() {
     plugins: [
       inferAdditionalFields({
         user: {
-          polarCustomerId: {
-            type: 'string'
+          referralCode: {
+            type: 'string',
+            required: false
           }
         },
         apiKey: {

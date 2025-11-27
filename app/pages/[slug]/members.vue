@@ -50,6 +50,25 @@ const isPro = computed(() => {
   return result
 })
 
+// Find the config for the user's actual current plan to support legacy pricing
+const currentSubPlanConfig = computed(() => {
+  if (!activeStripeSubscription.value)
+    return null
+  // Try to find exact match in PLANS by ID
+  const match = Object.values(PLANS).find(p => p.id === activeStripeSubscription.value?.plan)
+  return match
+})
+
+// Helper to get the correct plan config for calculations
+const getPlanConfigForInterval = (interval: 'month' | 'year') => {
+  // If user is already on a plan matching the interval, use their specific config (preserves legacy pricing)
+  if (currentSubPlanConfig.value && currentSubPlanConfig.value.interval === interval) {
+    return currentSubPlanConfig.value
+  }
+  // Otherwise use the current public plan for that interval
+  return interval === 'year' ? PLANS.PRO_YEARLY : PLANS.PRO_MONTHLY
+}
+
 // Check if we need to set an active org on mount
 onMounted(async () => {
   // Only set first org if there's truly no active org in the session
@@ -195,7 +214,7 @@ async function handleUpgrade() {
     const quantity = currentMembers + pendingInvites + inviteCount
 
     const { error } = await client.subscription.upgrade({
-      plan: selectedUpgradeInterval.value === 'month' ? 'pro-monthly' : 'pro-yearly',
+      plan: selectedUpgradeInterval.value === 'month' ? PLANS.PRO_MONTHLY.id : PLANS.PRO_YEARLY.id,
       referenceId: activeOrg.value.data.id,
       metadata: {
         quantity: quantity > 0 ? quantity : 1
@@ -304,7 +323,7 @@ async function openAddSeatModal() {
   isEndingTrial.value = activeStripeSubscription.value.status === 'trialing'
 
   // Set default interval
-  seatInterval.value = (activeStripeSubscription.value.plan === 'pro-yearly' || activeStripeSubscription.value.plan?.includes('year')) ? 'year' : 'month'
+  seatInterval.value = (activeStripeSubscription.value.plan === PLANS.PRO_YEARLY.id || activeStripeSubscription.value.plan?.includes('year')) ? 'year' : 'month'
 
   showAddSeatModal.value = true
   await fetchSeatPreview()
@@ -704,8 +723,8 @@ async function revokeInvitation(invitationId: string) {
               </div>
               <div class="text-muted-foreground">
                 ${{ (
-                  (activeStripeSubscription?.plan?.includes('year') || seatInterval === 'year' ? PLANS.PRO_YEARLY.priceNumber : PLANS.PRO_MONTHLY.priceNumber)
-                  + (Math.max(0, (activeStripeSubscription?.seats || 1) - 1) * (activeStripeSubscription?.plan?.includes('year') || seatInterval === 'year' ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber))
+                  getPlanConfigForInterval(seatInterval).priceNumber
+                  + (Math.max(0, (activeStripeSubscription?.seats || 1) - 1) * getPlanConfigForInterval(seatInterval).seatPriceNumber)
                 ).toFixed(2) }}/{{ seatInterval === 'year' ? 'yr' : 'mo' }}
               </div>
             </div>
@@ -724,8 +743,8 @@ async function revokeInvitation(invitationId: string) {
               </div>
               <div class="text-primary font-medium">
                 ${{ (
-                  (activeStripeSubscription?.plan?.includes('year') || seatInterval === 'year' ? PLANS.PRO_YEARLY.priceNumber : PLANS.PRO_MONTHLY.priceNumber)
-                  + ((activeStripeSubscription?.seats || 1) * (activeStripeSubscription?.plan?.includes('year') || seatInterval === 'year' ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber))
+                  getPlanConfigForInterval(seatInterval).priceNumber
+                  + ((activeStripeSubscription?.seats || 1) * getPlanConfigForInterval(seatInterval).seatPriceNumber)
                 ).toFixed(2) }}/{{ seatInterval === 'year' ? 'yr' : 'mo' }}
               </div>
             </div>
@@ -735,11 +754,11 @@ async function revokeInvitation(invitationId: string) {
           <div class="text-xs text-muted-foreground space-y-1 px-1">
             <div class="flex justify-between">
               <span>Base Plan (Includes 1 Seat):</span>
-              <span>${{ (activeStripeSubscription?.plan?.includes('year') || seatInterval === 'year' ? PLANS.PRO_YEARLY.priceNumber : PLANS.PRO_MONTHLY.priceNumber).toFixed(2) }}</span>
+              <span>${{ getPlanConfigForInterval(seatInterval).priceNumber.toFixed(2) }}</span>
             </div>
             <div class="flex justify-between">
-              <span>Additional Seats ({{ (activeStripeSubscription?.seats || 1) }} x ${{ (activeStripeSubscription?.plan?.includes('year') || seatInterval === 'year' ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber).toFixed(2) }}):</span>
-              <span>${{ ((activeStripeSubscription?.seats || 1) * (activeStripeSubscription?.plan?.includes('year') || seatInterval === 'year' ? PLANS.PRO_YEARLY.seatPriceNumber : PLANS.PRO_MONTHLY.seatPriceNumber)).toFixed(2) }}</span>
+              <span>Additional Seats ({{ (activeStripeSubscription?.seats || 1) }} x ${{ getPlanConfigForInterval(seatInterval).seatPriceNumber.toFixed(2) }}):</span>
+              <span>${{ ((activeStripeSubscription?.seats || 1) * getPlanConfigForInterval(seatInterval).seatPriceNumber).toFixed(2) }}</span>
             </div>
           </div>
 

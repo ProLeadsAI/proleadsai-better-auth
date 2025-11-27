@@ -31,7 +31,7 @@ const description = computed(() => {
 
 const message = computed(() => {
   if (props.reason === 'create-org') {
-    return 'The Free plan only allows 1 organization per user. Each additional orginizations under the same account require a Pro plan.'
+    return 'The Free plan only allows 1 organization per user. Each additional organization under the same account require a Pro plan.'
   }
   if (props.reason === 'invite') {
     return 'The Free plan only allows 1 team member. Upgrade this organization to Pro to invite members and unlock additional features.'
@@ -53,7 +53,7 @@ async function handleUpgrade() {
 
     // Use Better Auth subscription.upgrade
     await client.subscription.upgrade({
-      plan: selectedInterval.value === 'month' ? 'pro-monthly' : 'pro-yearly',
+      plan: selectedInterval.value === 'month' ? PLANS.PRO_MONTHLY.id : PLANS.PRO_YEARLY.id,
       referenceId: props.organizationId,
       metadata: {
         quantity: 1
@@ -149,7 +149,7 @@ async function handleUpgrade() {
               </div>
               <p class="text-xs text-muted-foreground mb-3">
                 <span class="font-semibold text-green-600 dark:text-green-400">{{ plan.trialDays }}-day free trial</span><br>
-                Base Plan ({{ plan.price }}).<br>
+                Base Plan (${{ plan.priceNumber.toFixed(2) }}).<br>
                 Each additional member adds ${{ (plan.seatPriceNumber || 0).toFixed(2) }}/{{ plan.interval === 'year' ? 'yr' : 'mo' }}.
               </p>
 

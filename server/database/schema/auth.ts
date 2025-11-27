@@ -25,7 +25,7 @@ export const user = pgTable('user', {
   banExpires: timestamp('ban_expires'),
   lastActiveOrganizationId: text('last_active_organization_id'),
   stripeCustomerId: text('stripe_customer_id'),
-  polarCustomerId: text('polar_customer_id')
+  referralCode: text('referral_code')
 })
 
 export const account = pgTable(
@@ -76,7 +76,7 @@ export const organization = pgTable('organization', {
   createdAt: timestamp('created_at').notNull(),
   metadata: text('metadata'),
   stripeCustomerId: text('stripe_customer_id'),
-  polarCustomerId: text('polar_customer_id')
+  referralCode: text('referral_code')
 })
 
 export const member = pgTable(

@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import type { User } from '~~/shared/utils/types'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { APIError, createAuthMiddleware } from 'better-auth/api'
+import { APIError, createAuthMiddleware, getOAuthState } from 'better-auth/api'
 import { admin as adminPlugin, apiKey, openAPI, organization } from 'better-auth/plugins'
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
@@ -54,19 +54,39 @@ export const createBetterAuth = () => betterAuth({
   },
   user: {
     additionalFields: {
-      polarCustomerId: {
-        type: 'string',
-        required: false,
-        defaultValue: null
-      },
       lastActiveOrganizationId: {
         type: 'string',
         required: false,
         defaultValue: null
+      },
+      referralCode: {
+        type: 'string',
+        required: false
       }
     }
   },
   databaseHooks: {
+    user: {
+      create: {
+        before: async (user, ctx) => {
+          if (ctx.path.startsWith('/callback')) {
+            try {
+              const additionalData = await getOAuthState(ctx)
+              if (additionalData?.referralCode) {
+                return {
+                  data: {
+                    ...user,
+                    referralCode: additionalData.referralCode
+                  }
+                }
+              }
+            } catch {
+              // ignore
+            }
+          }
+        }
+      }
+    },
     session: {
       create: {
         before: async (session) => {
@@ -131,6 +151,25 @@ export const createBetterAuth = () => betterAuth({
       }
     },
     organization: {
+      create: {
+        before: async (org, ctx) => {
+          const session = ctx.session || ctx.context?.session
+          if (session?.user?.id) {
+            const db = getDB()
+            const user = await db.query.user.findFirst({
+              where: eq(schema.user.id, session.user.id)
+            })
+            if (user?.referralCode) {
+              return {
+                data: {
+                  ...org,
+                  referralCode: user.referralCode
+                }
+              }
+            }
+          }
+        }
+      },
       update: {
         before: async (org: any) => {
           console.log('[Auth Hook] Organization Update Payload:', JSON.stringify(org, null, 2))

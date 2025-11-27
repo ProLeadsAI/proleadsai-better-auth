@@ -284,8 +284,8 @@ export const setupStripe = () => stripe({
     plans: async () => {
       const plans = [
         {
-          name: 'pro-monthly',
-          priceId: runtimeConfig.stripePriceIdProMonth,
+          name: PLANS.PRO_MONTHLY.id,
+          priceId: PLANS.PRO_MONTHLY.priceId,
           freeTrial: {
             days: PLANS.PRO_MONTHLY.trialDays,
             onTrialStart: async (subscription: Subscription) => {
@@ -304,8 +304,8 @@ export const setupStripe = () => stripe({
           }
         },
         {
-          name: 'pro-yearly',
-          priceId: runtimeConfig.stripePriceIdProYear,
+          name: PLANS.PRO_YEARLY.id,
+          priceId: PLANS.PRO_YEARLY.priceId,
           freeTrial: {
             days: PLANS.PRO_YEARLY.trialDays,
             onTrialStart: async (subscription: Subscription) => {
@@ -324,7 +324,6 @@ export const setupStripe = () => stripe({
           }
         }
       ]
-      // console.log('Stripe Configured Plans:', JSON.stringify(plans, null, 2))
       return plans
     },
     onSubscriptionComplete: async ({ subscription }) => {

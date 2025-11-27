@@ -2,8 +2,8 @@ import { and, eq } from 'drizzle-orm'
 import { member as memberTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/database/schema'
 import { getAuthSession } from '~~/server/utils/auth'
 import { useDB } from '~~/server/utils/db'
-import { runtimeConfig } from '~~/server/utils/runtimeConfig'
 import { createStripeClient } from '~~/server/utils/stripe'
+import { PLANS } from '~~/shared/utils/plans'
 
 export default defineEventHandler(async (event) => {
   const session = await getAuthSession(event)
@@ -72,8 +72,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const currentPriceId = subscription.items.data[0].price.id
-  const monthlyPriceId = runtimeConfig.stripePriceIdProMonth
-  const yearlyPriceId = runtimeConfig.stripePriceIdProYear
+  const monthlyPriceId = PLANS.PRO_MONTHLY.priceId
+  const yearlyPriceId = PLANS.PRO_YEARLY.priceId
 
   const newPriceId = newInterval === 'month' ? monthlyPriceId : yearlyPriceId
 
@@ -109,7 +109,7 @@ export default defineEventHandler(async (event) => {
 
   // Update local database immediately
   const updateData: any = {
-    plan: 'pro-yearly'
+    plan: PLANS.PRO_YEARLY.id
   }
 
   if (subscription.status === 'trialing' || updatedSub.status === 'active') {
