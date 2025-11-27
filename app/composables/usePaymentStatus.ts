@@ -1,0 +1,59 @@
+/**
+ * Composable for checking subscription payment status
+ * Used across the app to detect failed payments and trial usage
+ */
+export function usePaymentStatus() {
+  const { useActiveOrganization } = useAuth()
+  const activeOrg = useActiveOrganization()
+
+  // Get all subscriptions for the active organization
+  const subscriptions = computed(() => {
+    const data = activeOrg.value?.data
+    return (data as any)?.subscriptions || []
+  })
+
+  // Find the active subscription (including past_due)
+  // Note: 'incomplete' subscriptions are NOT valid - they occur when checkout is abandoned
+  const activeSub = computed(() => {
+    const subs = subscriptions.value as any[]
+    if (!subs || subs.length === 0)
+      return null
+    // Only return subscriptions with valid statuses - do NOT fallback to incomplete/canceled
+    return subs.find(
+      (s: any) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due'
+    ) || null
+  })
+
+  // Check if subscription has a failed payment
+  const isPaymentFailed = computed(() => activeSub.value?.status === 'past_due')
+
+  // Check if user has already used their free trial
+  const hasUsedTrial = computed(() => {
+    const subs = subscriptions.value as any[]
+    if (!subs || subs.length === 0)
+      return false
+    return subs.some((s: any) => s.trialStart || s.trialEnd || s.status === 'trialing')
+  })
+
+  // Current plan type
+  const currentPlan = computed(() => {
+    if (activeSub.value) {
+      return 'pro'
+    }
+    return 'free'
+  })
+
+  // Organization ID helper
+  const organizationId = computed(() => activeOrg.value?.data?.id)
+  const organizationSlug = computed(() => activeOrg.value?.data?.slug)
+
+  return {
+    subscriptions,
+    activeSub,
+    isPaymentFailed,
+    hasUsedTrial,
+    currentPlan,
+    organizationId,
+    organizationSlug
+  }
+}

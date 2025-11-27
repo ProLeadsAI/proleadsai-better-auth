@@ -1,0 +1,467 @@
+<script setup lang="ts">
+/**
+ * Member Invite Form Component
+ * Handles inviting members with seat limit checking, trial conversion, and upgrade flows
+ *
+ * Usage: <MembersInviteForm :can-manage="canManageMembers" :is-pro="isPro" />
+ */
+import { PLANS } from '~~/shared/utils/plans'
+
+const { canManage, isPro } = defineProps<{
+  canManage?: boolean
+  isPro?: boolean
+}>()
+
+const emit = defineEmits<{
+  refresh: []
+}>()
+
+const { organization, useActiveOrganization, fetchSession, refreshActiveOrg, activeStripeSubscription, user } = useAuth()
+const activeOrg = useActiveOrganization()
+const toast = useToast()
+
+const inviteEmail = ref('')
+const inviteRole = ref('member')
+const loading = ref(false)
+const showUpgradeModal = ref(false)
+const showAddSeatModal = ref(false)
+const showContactOwnerModal = ref(false)
+const addSeatPreview = ref<any>(null)
+const seatInterval = ref<'month' | 'year'>('month')
+const isEndingTrial = ref(false)
+const errorMessage = ref('')
+
+// Check if current user is owner (can manage billing)
+const isOwner = computed(() => {
+  if (!activeOrg.value?.data?.members || !user.value?.id)
+    return false
+  const member = activeOrg.value.data.members.find((m: any) => m.userId === user.value?.id)
+  return member?.role === 'owner'
+})
+
+const roles = [
+  { label: 'Member', value: 'member' },
+  { label: 'Admin', value: 'admin' },
+  { label: 'Owner', value: 'owner' }
+]
+
+// Find the config for the user's actual current plan to support legacy pricing
+const currentSubPlanConfig = computed(() => {
+  if (!activeStripeSubscription.value)
+    return null
+  const match = Object.values(PLANS).find(p => p.id === activeStripeSubscription.value?.plan)
+  return match
+})
+
+const nextChargeDate = computed(() => {
+  if ((activeStripeSubscription.value as any)?.periodEnd) {
+    return new Date((activeStripeSubscription.value as any).periodEnd).toLocaleDateString()
+  }
+  return null
+})
+
+// Helper to get the correct plan config for calculations
+function getPlanConfigForInterval(interval: 'month' | 'year') {
+  if (currentSubPlanConfig.value && currentSubPlanConfig.value.interval === interval) {
+    return currentSubPlanConfig.value
+  }
+  return interval === 'year' ? PLANS.PRO_YEARLY : PLANS.PRO_MONTHLY
+}
+
+async function inviteMember() {
+  try {
+    if (!inviteEmail.value || !activeOrg.value?.data?.id)
+      return
+
+    const hasPro = !!activeStripeSubscription.value
+    const isTrialing = activeStripeSubscription.value?.status === 'trialing'
+
+    if (isTrialing) {
+      // Only owners can end trial and add seats
+      if (!isOwner.value) {
+        showContactOwnerModal.value = true
+        return
+      }
+      await openAddSeatModal()
+      return
+    }
+
+    const currentMemberCount = activeOrg.value.data.members.length
+    const pendingInvitesCount = activeOrg.value.data.invitations.filter((i: any) => i.status === 'pending').length
+    const totalCount = currentMemberCount + pendingInvitesCount
+
+    if (!hasPro && totalCount >= 1) {
+      // Only owners can upgrade
+      if (!isOwner.value) {
+        showContactOwnerModal.value = true
+        return
+      }
+      showUpgradeModal.value = true
+      return
+    }
+
+    if (hasPro) {
+      const purchasedSeats = Number(activeStripeSubscription.value?.seats) || 1
+      if (totalCount + 1 > purchasedSeats) {
+        // Only owners can add seats
+        if (!isOwner.value) {
+          showContactOwnerModal.value = true
+          return
+        }
+        await openAddSeatModal()
+        return
+      }
+    }
+
+    loading.value = true
+
+    const { error } = await organization.inviteMember({
+      email: inviteEmail.value,
+      role: inviteRole.value as 'member' | 'admin' | 'owner',
+      organizationId: activeOrg.value.data.id
+    })
+
+    if (error)
+      throw error
+
+    toast.add({ title: 'Invitation sent', color: 'success' })
+    inviteEmail.value = ''
+    await fetchSession()
+    await refreshActiveOrg()
+    emit('refresh')
+  } catch (e: any) {
+    console.error('InviteMember Error:', e)
+    toast.add({
+      title: 'Error inviting member',
+      description: e.message,
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function openAddSeatModal() {
+  if (!activeStripeSubscription.value)
+    return
+
+  isEndingTrial.value = activeStripeSubscription.value.status === 'trialing'
+  seatInterval.value = (activeStripeSubscription.value.plan === PLANS.PRO_YEARLY.id || activeStripeSubscription.value.plan?.includes('year')) ? 'year' : 'month'
+
+  showAddSeatModal.value = true
+  await fetchSeatPreview()
+}
+
+async function fetchSeatPreview() {
+  loading.value = true
+  errorMessage.value = ''
+  addSeatPreview.value = null
+
+  try {
+    const currentSeats = activeStripeSubscription.value?.seats || 1
+
+    const preview = await $fetch('/api/stripe/preview-seat-change', {
+      method: 'POST',
+      body: {
+        organizationId: activeOrg.value!.data!.id,
+        seats: currentSeats + 1,
+        newInterval: isEndingTrial.value ? seatInterval.value : undefined
+      }
+    })
+    addSeatPreview.value = preview
+  } catch (e: any) {
+    errorMessage.value = e.data?.message || e.message || 'Failed to load preview.'
+    toast.add({
+      title: 'Error loading preview',
+      description: errorMessage.value,
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(seatInterval, () => {
+  if (isEndingTrial.value) {
+    fetchSeatPreview()
+  }
+})
+
+async function confirmAddSeat() {
+  if (!activeStripeSubscription.value)
+    return
+
+  loading.value = true
+  try {
+    const currentSeats = activeStripeSubscription.value.seats || 1
+    const newSeats = currentSeats + 1
+
+    await $fetch('/api/stripe/update-seats', {
+      method: 'POST',
+      body: {
+        organizationId: activeOrg.value!.data!.id,
+        seats: newSeats,
+        endTrial: isEndingTrial.value,
+        newInterval: isEndingTrial.value ? seatInterval.value : undefined
+      }
+    })
+
+    toast.add({
+      title: 'Seat added successfully',
+      description: `You now have ${newSeats} seats.`,
+      color: 'success'
+    })
+
+    showAddSeatModal.value = false
+    await fetchSession()
+    await refreshActiveOrg()
+    emit('refresh')
+  } catch (e: any) {
+    console.error(e)
+    toast.add({
+      title: 'Failed to add seat',
+      description: e.data?.message || e.message || 'Unknown error',
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleUpgrade() {
+  if (!activeOrg.value?.data?.id)
+    return
+  loading.value = true
+  try {
+    const currentMembers = activeOrg.value.data.members.length || 1
+    const pendingInvites = activeOrg.value.data.invitations.filter((i: any) => i.status === 'pending').length
+    const inviteCount = inviteEmail.value ? 1 : 0
+    const quantity = currentMembers + pendingInvites + inviteCount
+
+    const { useAuth: getAuth } = await import('~/composables/useAuth')
+    const { client } = getAuth()
+
+    const { error } = await client.subscription.upgrade({
+      plan: seatInterval.value === 'month' ? PLANS.PRO_MONTHLY.id : PLANS.PRO_YEARLY.id,
+      referenceId: activeOrg.value.data.id,
+      metadata: {
+        quantity: quantity > 0 ? quantity : 1
+      },
+      successUrl: `${window.location.origin}/${activeOrg.value.data.slug}/members?success=true${inviteEmail.value ? `&pendingInviteEmail=${encodeURIComponent(inviteEmail.value)}&pendingInviteRole=${inviteRole.value}` : ''}`,
+      cancelUrl: `${window.location.origin}/${activeOrg.value.data.slug}/members?canceled=true`
+    })
+
+    if (error)
+      throw error
+  } catch (e: any) {
+    console.error(e)
+    toast.add({
+      title: 'Failed to start checkout',
+      description: e.data?.message || e.message,
+      color: 'error'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<template>
+  <div
+    v-if="canManage"
+    class="border-b border-neutral-200 dark:border-neutral-700 pb-6 mb-6"
+  >
+    <!-- Pro User Invite Form -->
+    <div
+      v-if="isPro"
+      class="flex gap-2 items-end"
+    >
+      <UFormField
+        label="Email Address"
+        class="flex-1"
+      >
+        <UInput
+          v-model="inviteEmail"
+          placeholder="colleague@example.com"
+          icon="i-lucide-mail"
+        />
+      </UFormField>
+      <UFormField
+        label="Role"
+        class="w-40"
+      >
+        <UDropdownMenu
+          :items="roles.map(r => ({
+            label: r.label,
+            type: 'checkbox',
+            checked: inviteRole === r.value,
+            onUpdateChecked: () => { inviteRole = r.value }
+          }))"
+          arrow
+        >
+          <UButton
+            :label="roles.find(r => r.value === inviteRole)?.label || 'Select role'"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-chevron-down"
+            trailing
+            block
+            class="cursor-pointer"
+          />
+        </UDropdownMenu>
+      </UFormField>
+      <UButton
+        :loading="loading"
+        icon="i-lucide-send"
+        class="cursor-pointer"
+        @click="inviteMember"
+      >
+        Invite
+      </UButton>
+    </div>
+
+    <!-- Free User Upgrade Prompt -->
+    <div
+      v-else
+      class="flex justify-between items-center"
+    >
+      <p class="text-sm text-muted-foreground">
+        Upgrade to Pro to invite team members.
+      </p>
+      <UButton
+        label="Upgrade to add members"
+        color="primary"
+        icon="i-lucide-lock"
+        class="cursor-pointer"
+        @click="showUpgradeModal = true"
+      />
+    </div>
+
+    <!-- Upgrade Modal -->
+    <BillingUpgradeModal
+      v-model:open="showUpgradeModal"
+      reason="invite"
+      :organization-id="activeOrg?.data?.id"
+      @upgraded="handleUpgrade"
+    />
+
+    <!-- Add Seat Modal -->
+    <UModal
+      v-model:open="showAddSeatModal"
+      title="Add a Seat"
+      :description="activeStripeSubscription?.status === 'trialing'
+        ? 'You are currently in a trial. Adding a member will end your trial and start your subscription.'
+        : 'You have used all your available seats. Add another seat to invite more members.'"
+    >
+      <template #body>
+        <div
+          v-if="activeStripeSubscription?.status === 'trialing'"
+          class="mb-4"
+        >
+          <label class="block text-sm font-medium mb-3">Select billing cycle for your new plan</label>
+          <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mb-4">
+            <button
+              class="flex-1 px-3 py-1 text-sm font-medium rounded-md transition-all"
+              :class="seatInterval === 'month' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-muted-foreground'"
+              @click="seatInterval = 'month'"
+            >
+              Monthly
+            </button>
+            <button
+              class="flex-1 px-3 py-1 text-sm font-medium rounded-md transition-all"
+              :class="seatInterval === 'year' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-muted-foreground'"
+              @click="seatInterval = 'year'"
+            >
+              Yearly
+            </button>
+          </div>
+        </div>
+
+        <BillingSeatChangePreview
+          v-if="addSeatPreview"
+          :current-seats="activeStripeSubscription?.seats || 1"
+          :target-seats="(activeStripeSubscription?.seats || 1) + 1"
+          :plan-config="getPlanConfigForInterval(seatInterval)"
+          :preview="addSeatPreview"
+          :next-charge-date="nextChargeDate"
+          :is-trialing="isEndingTrial"
+        />
+
+        <div
+          v-else-if="errorMessage"
+          class="py-4 flex flex-col items-center gap-2 text-center"
+        >
+          <UIcon
+            name="i-lucide-alert-circle"
+            class="w-8 h-8 text-red-500"
+          />
+          <p class="text-sm text-red-600">
+            {{ errorMessage }}
+          </p>
+          <UButton
+            label="Retry"
+            size="sm"
+            variant="outline"
+            @click="fetchSeatPreview"
+          />
+        </div>
+
+        <div
+          v-else
+          class="py-4 flex justify-center"
+        >
+          <UIcon
+            name="i-lucide-loader-2"
+            class="animate-spin w-6 h-6 text-primary"
+          />
+        </div>
+      </template>
+
+      <template #footer>
+        <UButton
+          color="neutral"
+          variant="outline"
+          label="Cancel"
+          @click="showAddSeatModal = false"
+        />
+        <UButton
+          :loading="loading"
+          :label="activeStripeSubscription?.status === 'trialing' ? 'End Trial & Pay' : 'Add Seat & Pay'"
+          color="primary"
+          @click="confirmAddSeat"
+        />
+      </template>
+    </UModal>
+
+    <!-- Contact Owner Modal (for admins who can't manage billing) -->
+    <UModal
+      v-model:open="showContactOwnerModal"
+      title="Additional Seats Required"
+    >
+      <template #body>
+        <div class="text-center py-4">
+          <div class="bg-amber-100 dark:bg-amber-900/20 p-3 rounded-full w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+            <UIcon
+              name="i-lucide-users"
+              class="w-6 h-6 text-amber-600 dark:text-amber-400"
+            />
+          </div>
+          <p class="text-gray-600 dark:text-gray-300 mb-2">
+            All available seats are in use.
+          </p>
+          <p class="text-sm text-gray-500">
+            Please contact the team owner to add more seats or upgrade the plan.
+          </p>
+        </div>
+      </template>
+      <template #footer>
+        <UButton
+          label="Got it"
+          color="primary"
+          block
+          @click="showContactOwnerModal = false"
+        />
+      </template>
+    </UModal>
+  </div>
+</template>

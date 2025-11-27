@@ -18,29 +18,19 @@ const selectedInterval = ref<'month' | 'year'>('month')
 const loading = ref(false)
 const toast = useToast()
 
-// Check if there's a past_due subscription that needs fixing
-const { useActiveOrganization } = useAuth()
-const activeOrg = useActiveOrganization()
-
-const hasPastDueSubscription = computed(() => {
-  const subs = (activeOrg.value?.data as any)?.subscriptions || []
-  return subs.some((s: any) => s.status === 'past_due')
-})
-
-const hasUsedTrial = computed(() => {
-  const subs = (activeOrg.value?.data as any)?.subscriptions || []
-  return subs.some((s: any) => s.trialStart || s.trialEnd || s.status === 'trialing')
-})
+// Use shared payment status composable
+const { isPaymentFailed: hasPastDueSubscription, hasUsedTrial, organizationId } = usePaymentStatus()
 
 // Open billing portal to fix payment
 async function openBillingPortal() {
-  if (!props.organizationId)
+  const orgId = props.organizationId || organizationId.value
+  if (!orgId)
     return
   loading.value = true
   try {
     const { url } = await $fetch('/api/stripe/portal', {
       method: 'POST',
-      body: { organizationId: props.organizationId }
+      body: { organizationId: orgId }
     })
     if (url) {
       window.location.href = url

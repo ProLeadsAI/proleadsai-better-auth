@@ -87,7 +87,7 @@ onMounted(async () => {
 // 2. That endpoint includes subscriptions
 // 3. We just fixed useActiveOrganization() to use global state populated by the layout
 // So we can just read the data directly!
-const subscriptions = computed(() => {
+const _subscriptions = computed(() => {
   const data = activeOrg.value?.data
   // Check both direct subscriptions property (from get-full-organization response)
   // and if it's nested inside data (depending on how activeOrg is structured)
@@ -99,15 +99,8 @@ const refresh = async () => {
   await refreshActiveOrg()
 }
 
-const activeSub = computed(() => {
-  if (!subscriptions.value)
-    return null
-  const subArray = Array.isArray(subscriptions.value) ? subscriptions.value : []
-  // Include past_due - they still have a subscription, just with payment issues
-  return (subArray as any[]).find(
-    sub => sub.status === 'active' || sub.status === 'trialing' || sub.status === 'past_due'
-  )
-})
+// Use shared payment status composable for consistent behavior
+const { activeSub, hasUsedTrial: _hasUsedTrial, isPaymentFailed } = usePaymentStatus()
 
 // Sync billingInterval with active subscription
 watch(activeSub, (sub) => {
@@ -137,14 +130,8 @@ const currentPlan = computed(() => {
   return 'free'
 })
 
-// Check if user has already used a trial (Better Auth prevents multiple trials)
-const hasUsedTrial = computed(() => {
-  const subs = subscriptions.value as any[]
-  if (!subs || subs.length === 0)
-    return false
-  // If any subscription has trialStart/trialEnd set, or was ever trialing, they've used their trial
-  return subs.some((s: any) => s.trialStart || s.trialEnd || s.status === 'trialing')
-})
+// hasUsedTrial comes from usePaymentStatus composable (aliased as _hasUsedTrial above)
+const hasUsedTrial = _hasUsedTrial
 
 const isCanceled = computed(() => {
   return activeSub.value?.cancelAtPeriodEnd
@@ -761,42 +748,10 @@ async function confirmPlanChange() {
           </div>
 
           <!-- Payment Failed - Show focused fix payment UI -->
-          <div
-            v-if="activeSub?.status === 'past_due'"
-            class="mt-6 pt-6 border-t border-red-200 dark:border-red-800"
-          >
-            <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
-              <h3 class="text-sm font-semibold text-red-800 dark:text-red-200 mb-2">
-                Action Required: Update Payment Method
-              </h3>
-              <p class="text-sm text-red-700 dark:text-red-300 mb-4">
-                Your last payment failed. To keep your Pro subscription active and retain your team members,
-                please update your payment method. Once updated, we'll automatically retry the payment.
-              </p>
-              <div class="flex flex-col sm:flex-row gap-3">
-                <UButton
-                  color="red"
-                  icon="i-lucide-credit-card"
-                  :loading="portalLoading"
-                  @click="openBillingPortal"
-                >
-                  Update Payment Method
-                </UButton>
-                <UButton
-                  variant="outline"
-                  color="red"
-                  icon="i-lucide-mail"
-                  as="a"
-                  href="mailto:support@example.com?subject=Payment%20Issue"
-                >
-                  Contact Support
-                </UButton>
-              </div>
-            </div>
-          </div>
+          <BillingPaymentFailedCard support-email="support@example.com" />
 
           <!-- Normal plan management (hide when payment failed) -->
-          <template v-else>
+          <template v-if="!isPaymentFailed">
             <!-- Plan Switch Button (Only show for monthly -> yearly upgrade) -->
             <div
               v-if="currentPlan === 'pro' && !isCanceled && activeSub?.status !== 'trialing' && !activeSub?.plan?.includes('year')"

@@ -29,7 +29,11 @@ Very small Nuxt-based SaaS starter I’m using for my own project.
   - User sees a toast notification explaining the card was declined.  
   - An "Update Payment Method" button appears in the modal, linking to the Stripe Customer Portal.  
   - Billing page shows a prominent red warning banner when subscription is `past_due`, warning that Pro access and team members will be lost if not resolved.  
-  - "Manage Payment Method" button on billing page opens Stripe's hosted portal for secure card updates.
+  - "Manage Payment Method" button on billing page opens Stripe's hosted portal for secure card updates.  
+  - **Reusable Components** (for template customization):  
+    - `usePaymentStatus()` - Composable for checking `isPaymentFailed`, `hasUsedTrial`, `activeSub`, etc.  
+    - `<BillingPaymentFailedBanner />` - Global warning banner for dashboard layout.  
+    - `<BillingPaymentFailedCard />` - Detailed action card with update payment buttons.
 
 - **Failed Payment Grace Period** (Stripe Dashboard Configuration)  
   - Configure in Stripe Dashboard → Settings → Billing → Subscriptions and emails.  
@@ -38,6 +42,16 @@ Very small Nuxt-based SaaS starter I’m using for my own project.
   - During grace period: Users see warning banners, receive Stripe emails, and can update payment method.  
   - On cancellation: Webhook triggers `removeExcessMembersOnExpiration()` to downgrade team to free plan limits and removes any invited team members. Team members will have to be added again if the plan is reactivated.
 
+- **Settings Page Components** (for template customization):  
+  - `<SettingsGeneralSection />` - Organization name, slug, timezone settings.  
+  - `<SettingsApiKeysSection />` - API key creation, listing, and deletion.  
+  - `<SettingsSessionsSection />` - Trusted devices / active sessions management.  
+  - `<SettingsDangerZone />` - Leave or delete organization actions.
+
+- **Members Page Components** (for template customization):  
+  - `<MembersInviteForm />` - Invite form with seat limit checking, trial conversion, and upgrade flows.  
+  - `useTimezone()` - Composable for timezone list and formatting utilities.
+
 - **Organizations & Limits**  
   - First team gets **one free organization**.  
   - Every additional organization requires its own Pro subscription.  
@@ -45,7 +59,8 @@ Very small Nuxt-based SaaS starter I’m using for my own project.
 
 - **Seats, Members & Invites**  
   - Pro plan is seat-based: base plan includes 1 seat, extra members cost per-seat.  
-  - Owners/Admins can add/remove seats and preview the new price before confirming.  
+  - **Owners** can add/remove seats and preview the new price before confirming.  
+  - **Admins** can invite members if seats are available, but cannot manage billing. If seats are full, they see a message to contact the team owner.  
   - Invitation links work for both **new** and **existing** users:  
     - If a user signs up from an invite, they land directly in the invited org instead of a confusing default personal team. 
     - If they already have an account, they can click the invite link any time to join the org.
