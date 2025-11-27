@@ -361,8 +361,7 @@ export const createBetterAuth = () => betterAuth({
         }
       }
     }),
-    setupStripe() // Disabled until API key is fixed
-    // setupPolar()
+    setupStripe()
   ]
 })
 

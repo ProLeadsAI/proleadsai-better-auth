@@ -75,7 +75,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     name: event.data.name,
     email: event.data.email,
     password: event.data.password,
-    polarCustomerId: '',
     referralCode: referralCode.value || undefined
   })
   if (error) {

@@ -12,7 +12,7 @@ export function useAuth() {
   const url = useRequestURL()
   const headers = import.meta.server ? useRequestHeaders() : undefined
   const runtimeConfig = useRuntimeConfig()
-  const payment = runtimeConfig.public.payment as 'stripe' | 'polar'
+  const payment = runtimeConfig.public.payment as 'stripe'
   const client = createAuthClient({
     baseURL: url.origin,
     fetchOptions: {
