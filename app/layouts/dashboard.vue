@@ -264,6 +264,18 @@ const activeOrgSlug = computed(() => {
   return activeOrg.value?.data?.slug || 't'
 })
 
+// Avatar initials fallback
+const userInitials = computed(() => {
+  if (!user.value?.name)
+    return '?'
+  return user.value.name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+})
+
 // Get needsUpgrade from the SSR data
 const needsUpgrade = computed(() => {
   // activeOrg.data is the flattened object. The server returns { organization: {...}, subscriptions: [], needsUpgrade: boolean }
@@ -288,7 +300,7 @@ watch([needsUpgrade, () => route.path], ([upgradeNeeded, currentPath]) => {
     return
 
   // Pages that are allowed even when needsUpgrade
-  const allowedPaths = ['/billing', '/settings']
+  const allowedPaths = ['/billing', '/settings', '/profile']
   const isAllowedPage = allowedPaths.some(p => currentPath.includes(p))
 
   if (!isAllowedPage) {
@@ -464,16 +476,26 @@ async function createTeam() {
             :disable-closing-trigger="true"
           >
             <template #content>
-              <UButton
-                icon="i-lucide-log-out"
-                size="sm"
-                color="neutral"
-                variant="link"
-                class="w-full p-[10px]"
+              <NuxtLink
+                :to="localePath(`/${activeOrgSlug}/profile`)"
+                class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors w-full"
+              >
+                <UIcon
+                  name="i-lucide-user-cog"
+                  class="w-4 h-4"
+                />
+                Profile Settings
+              </NuxtLink>
+              <button
+                class="flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors w-full text-left"
                 @click="clickSignOut"
               >
+                <UIcon
+                  name="i-lucide-log-out"
+                  class="w-4 h-4"
+                />
                 {{ t('global.auth.signOut') }}
-              </UButton>
+              </button>
             </template>
             <div
               class="w-full flex items-center justify-between mt-2 pt-2 pb-2"
@@ -484,7 +506,14 @@ async function createTeam() {
                   :src="user?.image || undefined"
                   size="xs"
                   class="border border-neutral-300 dark:border-neutral-700"
-                />
+                >
+                  <template
+                    v-if="!user?.image"
+                    #fallback
+                  >
+                    <span class="text-[10px] font-medium">{{ userInitials }}</span>
+                  </template>
+                </UAvatar>
                 <span
                   v-if="!isCollapsed"
                   class="text-xs ml-2"
@@ -531,21 +560,39 @@ async function createTeam() {
                 />
                 <!-- User Profile Section -->
                 <div class="mt-auto pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                  <div class="flex items-center gap-3 mb-3">
-                    <UAvatar
-                      :src="user?.image || undefined"
-                      size="sm"
-                      class="border border-neutral-300 dark:border-neutral-700"
-                    />
-                    <div class="flex-1 min-w-0">
-                      <p class="text-sm font-medium truncate">
-                        {{ user?.name }}
-                      </p>
-                      <p class="text-xs text-muted-foreground truncate">
-                        {{ user?.email }}
-                      </p>
+                  <UButton
+                    variant="ghost"
+                    color="neutral"
+                    class="w-full justify-start h-auto py-2 px-2 mb-2"
+                    :to="localePath(`/${activeOrgSlug}/profile`)"
+                  >
+                    <div class="flex items-center gap-3 w-full">
+                      <UAvatar
+                        :src="user?.image || undefined"
+                        size="sm"
+                        class="border border-neutral-300 dark:border-neutral-700"
+                      >
+                        <template
+                          v-if="!user?.image"
+                          #fallback
+                        >
+                          <span class="text-xs font-medium">{{ userInitials }}</span>
+                        </template>
+                      </UAvatar>
+                      <div class="flex-1 min-w-0 text-left">
+                        <p class="text-sm font-medium truncate">
+                          {{ user?.name }}
+                        </p>
+                        <p class="text-xs text-muted-foreground truncate">
+                          {{ user?.email }}
+                        </p>
+                      </div>
+                      <UIcon
+                        name="i-lucide-chevron-right"
+                        class="w-4 h-4 text-muted-foreground"
+                      />
                     </div>
-                  </div>
+                  </UButton>
                   <UButton
                     icon="i-lucide-log-out"
                     color="neutral"

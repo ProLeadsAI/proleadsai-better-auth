@@ -82,9 +82,24 @@ Very small Nuxt-based SaaS starter I’m using for my own project.
   - **Admin**: manage members and settings, but typically less billing power than the owner.  
   - **Member (read-only / limited)**: can use the product inside the org but cannot touch billing or sensitive admin actions.
 
+- **User Profile Management**  
+  - **Profile Settings Page** (`/profile`): Dedicated page for personal account settings, accessible from both desktop sidebar and mobile drawer.  
+  - **Profile Picture Upload**: Upload, change, or remove profile pictures with drag-and-drop support. Initials fallback when no image is set.  
+  - **Connected Accounts**: Link/unlink OAuth providers (Google, GitHub) to a single account.  
+  - **Password Management**: Change password for credential users, or use forgot password flow for OAuth-only users to add a password.  
+  - **Email Change with Stripe Sync**: When a team owner changes their email (with verification), Stripe customer email is automatically updated for all organizations they own.  
+  - **Trusted Devices**: View and revoke active sessions from the profile page.  
+  - **Account Deletion**: Users can delete their account with email verification for security.
+
+- **Stripe Billing Sync**  
+  - **Organization Name on Invoices**: Stripe customer name is set to the organization name (shows on invoices).  
+  - **Auto-sync After Payments**: After subscription creation or updates, customer name is synced back to org name (prevents personal card names from overwriting).  
+  - **Org Name Changes**: When organization name is updated in settings, Stripe customer name is automatically updated.  
+  - **Owner Email Changes**: When an owner verifies a new email, Stripe customer email is updated for all their organizations.
+
 - **Auth & Org Handling (Better Auth style)**  
-  - Most auth, organization, and subscription flows are implemented the “Better Auth way”, using its primitives and conventions.  
-  - **Exception:** API keys are wired using metadata on users/orgs to associate keys with organizations where Better Auth doesn’t natively handle org-scoped API keys.
+  - Most auth, organization, and subscription flows are implemented the "Better Auth way", using its primitives and conventions.  
+  - **Exception:** API keys are wired using metadata on users/orgs to associate keys with organizations where Better Auth doesn't natively handle org-scoped API keys.
 
 [ADD SCREENSHOT: members page showing roles (owner/admin/member)]
 

@@ -93,6 +93,27 @@ const getOrgByStripeCustomerId = async (stripeCustomerId: string) => {
   return org
 }
 
+/**
+ * Sync Stripe customer name with organization name (shows on invoices).
+ * Called after subscription events to ensure the customer name stays as the org name
+ * (not the cardholder name from payment method).
+ */
+export const syncStripeCustomerName = async (organizationId: string) => {
+  const db = await useDB()
+  const org = await db.query.organization.findFirst({
+    where: eq(organizationTable.id, organizationId)
+  })
+
+  if (!org?.stripeCustomerId)
+    return
+
+  const client = createStripeClient()
+  await client.customers.update(org.stripeCustomerId, {
+    name: org.name
+  })
+  console.log(`[Stripe] Synced customer ${org.stripeCustomerId} name to "${org.name}"`)
+}
+
 export const addPaymentLog = async (action: string, subscription: any) => {
   // Handle both Better Auth subscription object and raw Stripe subscription object
   const customerId = subscription.stripeCustomerId ||
@@ -329,9 +350,17 @@ export const setupStripe = () => stripe({
     },
     onSubscriptionComplete: async ({ subscription }) => {
       await addPaymentLog('subscription_created', subscription)
+      // Sync customer name back to org name (in case payment method changed it)
+      if (subscription.referenceId) {
+        await syncStripeCustomerName(subscription.referenceId)
+      }
     },
     onSubscriptionUpdate: async ({ subscription }) => {
       await addPaymentLog('subscription_updated', subscription)
+      // Sync customer name back to org name (in case payment method changed it)
+      if (subscription.referenceId) {
+        await syncStripeCustomerName(subscription.referenceId)
+      }
     },
     onSubscriptionCancel: async ({ subscription }) => {
       await addPaymentLog('subscription_canceled', subscription)

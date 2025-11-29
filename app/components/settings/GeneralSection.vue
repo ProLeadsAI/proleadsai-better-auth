@@ -63,6 +63,14 @@ async function updateTeam() {
     if (error)
       throw error
 
+    // Sync Stripe customer name if org name changed
+    if (teamName.value !== activeOrg.value.data.name) {
+      await $fetch('/api/stripe/sync-customer-name', {
+        method: 'POST',
+        body: { organizationId: activeOrg.value.data.id }
+      }).catch(e => console.warn('Failed to sync Stripe customer name:', e))
+    }
+
     toast.add({ title: 'Team updated successfully', color: 'success' })
     await fetchSession()
 
@@ -103,7 +111,7 @@ function copyId() {
     </p>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-      <UFormField label="Organization name">
+      <UFormField label="Organization name (shows on invoices)">
         <UInput
           v-model="teamName"
           :disabled="!canEdit"

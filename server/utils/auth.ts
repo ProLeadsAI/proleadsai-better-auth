@@ -12,7 +12,7 @@ import { logAuditEvent } from './auditLogger'
 import { getDB } from './db'
 import { cacheClient, resendInstance } from './drivers'
 import { runtimeConfig } from './runtimeConfig'
-import { setupStripe } from './stripe'
+import { createStripeClient, setupStripe } from './stripe'
 
 console.log(`Base URL is ${runtimeConfig.public.baseURL}`)
 console.log('Schema keys:', Object.keys(schema))
@@ -53,6 +53,22 @@ export const createBetterAuth = () => betterAuth({
     }
   },
   user: {
+    changeEmail: {
+      enabled: true
+    },
+    deleteUser: {
+      enabled: true,
+      async sendDeleteAccountVerification({ user, url }) {
+        if (resendInstance) {
+          await resendInstance.emails.send({
+            from: runtimeConfig.emailFrom!,
+            to: user.email,
+            subject: 'Confirm account deletion',
+            html: `<p>Hi ${user.name},</p><p>Click the link below to confirm deleting your account. This action cannot be undone.</p><p><a href="${url}">${url}</a></p>`
+          })
+        }
+      }
+    },
     additionalFields: {
       lastActiveOrganizationId: {
         type: 'string',
@@ -82,6 +98,50 @@ export const createBetterAuth = () => betterAuth({
               }
             } catch {
               // ignore
+            }
+          }
+        }
+      },
+      update: {
+        after: async (user) => {
+          // When user email changes, update Stripe customer email for orgs they own
+          console.log('[Auth] User update hook triggered:', { userId: user.id, email: user.email, emailVerified: user.emailVerified })
+
+          // Always sync email to Stripe when user is updated (email is verified by the change-email flow)
+          if (user.email) {
+            try {
+              const db = getDB()
+              // Find all orgs where this user is owner and has a Stripe customer
+              const ownedOrgs = await db
+                .select()
+                .from(schema.member)
+                .innerJoin(schema.organization, eq(schema.member.organizationId, schema.organization.id))
+                .where(and(
+                  eq(schema.member.userId, user.id),
+                  eq(schema.member.role, 'owner')
+                ))
+
+              console.log('[Auth] Found owned orgs:', ownedOrgs.length)
+
+              if (ownedOrgs.length > 0) {
+                const stripe = createStripeClient()
+                for (const row of ownedOrgs) {
+                  const org = row.organization
+                  if (org.stripeCustomerId) {
+                    // Update customer email (used for receipts and communications)
+                    // Also ensure customer name stays as org name (not cardholder name)
+                    await stripe.customers.update(org.stripeCustomerId, {
+                      email: user.email,
+                      name: org.name
+                    })
+                    console.log(`[Auth] Updated Stripe customer ${org.stripeCustomerId} email to ${user.email}, name to "${org.name}"`)
+                  } else {
+                    console.log(`[Auth] Org ${org.id} has no stripeCustomerId`)
+                  }
+                }
+              }
+            } catch (e) {
+              console.error('[Auth] Failed to update Stripe customer email:', e)
             }
           }
         }
@@ -234,6 +294,10 @@ export const createBetterAuth = () => betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
+      console.log('>>> EMAIL VERIFICATION LINK <<<')
+      console.log(`To: ${user.email}`)
+      console.log(url)
+      console.log('>>> ------------------------ <<<')
       try {
         const response = await resendInstance.emails.send({
           from: `${runtimeConfig.public.appName} <${runtimeConfig.public.appNotifyEmail}>`,
