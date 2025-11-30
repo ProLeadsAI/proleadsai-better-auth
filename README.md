@@ -26,6 +26,27 @@ A production-ready Nuxt SaaS starter with authentication, billing, teams, and mo
 >
 > Feel free to fork and adapt, but these constraints are intentional and won't change.
 
+### What's Included
+
+- [x] **Authentication** — Better Auth with email/password, OAuth (Google, GitHub), email verification
+- [x] **Multi-tenant orgs** — create/switch orgs, one free trial per account
+- [x] **Roles & permissions** — Owner, Admin, Member with granular access control
+- [x] **Stripe billing** — subscriptions, seat-based pricing, legacy price support
+- [x] **Billing previews** — see prorated charges before seat/plan changes
+- [x] **Invoice history** — view and download past invoices
+- [x] **Failed payment handling** — grace periods, recovery flows, warning banners
+- [x] **Team invites** — invite by email, works for new and existing users
+- [x] **User profiles** — avatar upload, email change, password management
+- [x] **Session management** — view/revoke active sessions
+- [x] **API keys** — per-org keys with expiration options
+- [x] **Admin tools** — user impersonation, soft-ban
+- [x] **Transactional emails** — React Email + Resend for all auth/billing events
+- [x] **Timezone support** — per-org timezone settings
+- [x] **Referral tracking** — track user and org referrals for attribution
+- [x] **Connected accounts** — link/unlink multiple OAuth providers
+- [x] **Account deletion** — secure deletion with email verification
+- [ ] **Usage-based billing** — metered billing support
+
 <p align="center">
   <img src="/public/screenshots/home.png" alt="Homepage" width="80%" />
 </p>
@@ -75,6 +96,40 @@ npx nuxthub deploy
 - **Invoice history** with pagination and PDF downloads
 - **Declined card handling** with graceful recovery flows
 - **Grace period support** for failed payments before auto-cancellation
+
+#### Stripe Subscription Status Flow
+
+| Status | When | What Happens |
+|--------|------|--------------|
+| `incomplete` | User opens Stripe Checkout for the first time | Waiting for initial payment |
+| `trialing` | User starts a free trial | Full access during trial period |
+| `active` | Payment succeeds (after trial or direct subscribe) | Full access, billing active |
+| `past_due` | Payment fails on renewal | Grace period — user sees warning banners, can update payment method |
+| `canceled` | Grace period ends or user canceled and billing cycle current date is past the billing cycle end date | Stripe sends webhook, access revoked, excess team members removed |
+
+**How it works:**
+1. When a payment fails, Stripe sets `status = "past_due"` and retries automatically
+2. During the grace period (configured in Stripe Dashboard), users see warning banners and can update their payment method
+3. If payment isn't resolved, Stripe sends a webhook after the grace period and sets `status = "canceled"`
+4. On cancellation, the app downgrades the org to free tier and removes excess team members
+
+#### Stripe Webhook Setup
+
+**Webhook endpoint:** `https://yourdomain.com/api/auth/stripe/webhook`
+
+Enable these webhooks in your Stripe Dashboard:
+
+| Event | Purpose |
+|-------|---------|
+| `checkout.session.completed` | Handle completed checkout sessions |
+| `customer.created` | Track new Stripe customers |
+| `customer.subscription.created` | New subscription created |
+| `customer.subscription.deleted` | Subscription ended/canceled |
+| `customer.subscription.trial_will_end` | Trial ending soon (3 days before) |
+| `customer.subscription.updated` | Plan changes, status updates |
+| `invoice.payment_failed` | Payment declined |
+| `invoice.payment_succeeded` | Payment successful |
+| `payment_intent.payment_failed` | Payment method or payment attempt failed |
 
 <p align="center">
   <img src="/public/screenshots/subscription.png" alt="Subscription Management" width="70%" />
