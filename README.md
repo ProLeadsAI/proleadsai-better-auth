@@ -247,6 +247,12 @@ Keep old plan entries in the file — existing subscribers are matched by `price
 
 ---
 
+## Acknowledgments
+
+This project is a fork of the original [NuxSaaS](https://github.com/NuxSaaS/NuxSaaS) by the NuxSaaS team. Thank you for the foundation!
+
+---
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
