@@ -15,7 +15,7 @@
 
 ---
 
-## NuxSaaS
+## House of Better Auth Nuxt SaaS Starter
 
 A production-ready Nuxt SaaS starter with authentication, billing, teams, and more.
 
