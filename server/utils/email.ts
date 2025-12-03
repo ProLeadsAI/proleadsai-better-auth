@@ -4,6 +4,7 @@
 
 import { render } from '@react-email/render'
 import { DeleteAccount } from '../../emails/DeleteAccount'
+import { MagicLink } from '../../emails/MagicLink'
 import { PaymentFailed } from '../../emails/PaymentFailed'
 import { ResetPassword } from '../../emails/ResetPassword'
 import { SubscriptionCanceled } from '../../emails/SubscriptionCanceled'
@@ -14,6 +15,7 @@ import { TeamInvite } from '../../emails/TeamInvite'
 import { TrialExpired } from '../../emails/TrialExpired'
 import { TrialStarted } from '../../emails/TrialStarted'
 import { VerifyEmail } from '../../emails/VerifyEmail'
+import { WordpressOtp } from '../../emails/WordpressOtp'
 import { runtimeConfig } from './runtimeConfig'
 
 const getAppName = () => runtimeConfig.public.appName || 'HouseOfBetterAuth'
@@ -115,4 +117,12 @@ export async function renderSubscriptionExpired(options: {
   billingUrl: string
 }): Promise<string> {
   return await render(SubscriptionExpired({ ...options, appName: getAppName() }))
+}
+
+export async function renderMagicLink(name: string, url: string, token?: string): Promise<string> {
+  return await render(MagicLink({ name, url, token, appName: getAppName() }))
+}
+
+export async function renderWordpressOtp(name: string, otp: string): Promise<string> {
+  return await render(WordpressOtp({ name, otp, appName: getAppName() }))
 }

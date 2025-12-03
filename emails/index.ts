@@ -10,6 +10,7 @@
 
 export { BaseEmail, EmailButton } from './BaseEmail'
 export { DeleteAccount } from './DeleteAccount'
+export { MagicLink } from './MagicLink'
 export { PaymentFailed } from './PaymentFailed'
 export { ResetPassword } from './ResetPassword'
 export { SubscriptionCanceled } from './SubscriptionCanceled'
@@ -20,3 +21,4 @@ export { TeamInvite } from './TeamInvite'
 export { TrialExpired } from './TrialExpired'
 export { TrialStarted } from './TrialStarted'
 export { VerifyEmail } from './VerifyEmail'
+export { WordpressOtp } from './WordpressOtp'

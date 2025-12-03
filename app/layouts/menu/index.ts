@@ -77,6 +77,21 @@ export const getUserMenus = (t: TranFunction, localePath: LocalePathFunction, ap
       to: localePath(`/${slug}/dashboard`)
     })
     items.push({
+      label: 'Leads',
+      icon: 'i-lucide-funnel',
+      to: localePath(`/${slug}/leads`)
+    })
+    items.push({
+      label: 'Contacts',
+      icon: 'i-lucide-contact',
+      to: localePath(`/${slug}/contacts`)
+    })
+    items.push({
+      label: 'Submissions',
+      icon: 'i-lucide-inbox',
+      to: localePath(`/${slug}/submissions`)
+    })
+    items.push({
       label: 'Members',
       icon: 'i-lucide-users',
       to: localePath(`/${slug}/members`)

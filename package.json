@@ -18,7 +18,8 @@
     "serve": "node .output/server/index.mjs",
     "preview:cf": "wrangler dev --x-remote-bindings",
     "deploy": "wrangler deploy",
-    "prepare": "husky"
+    "prepare": "husky",
+    "host:wp": "pnpm dev --host=0.0.0.0"
   },
   "dependencies": {
     "@better-auth/stripe": "^1.4.1",

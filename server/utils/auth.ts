@@ -3,7 +3,7 @@ import type { User } from '~~/shared/utils/types'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError, createAuthMiddleware, getOAuthState } from 'better-auth/api'
-import { admin as adminPlugin, apiKey, openAPI, organization } from 'better-auth/plugins'
+import { admin as adminPlugin, apiKey, emailOTP, magicLink, openAPI, organization } from 'better-auth/plugins'
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import { ac, admin, member, owner } from '../../shared/utils/permissions'
@@ -11,7 +11,7 @@ import * as schema from '../database/schema'
 import { logAuditEvent } from './auditLogger'
 import { getDB } from './db'
 import { cacheClient, resendInstance } from './drivers'
-import { renderDeleteAccount, renderResetPassword, renderTeamInvite, renderVerifyEmail } from './email'
+import { renderDeleteAccount, renderMagicLink, renderResetPassword, renderTeamInvite, renderVerifyEmail, renderWordpressOtp } from './email'
 import { runtimeConfig } from './runtimeConfig'
 import { createStripeClient, setupStripe } from './stripe'
 
@@ -442,6 +442,41 @@ export const createBetterAuth = () => betterAuth({
       schema: {
         apikey: {
           modelName: 'apiKey'
+        }
+      }
+    }),
+    magicLink({
+      sendMagicLink: async ({ email, url, token }, _ctx) => {
+        if (resendInstance) {
+          const name = email.split('@')[0]
+          const html = await renderMagicLink(name, url, token)
+          await resendInstance.emails.send({
+            from: `${runtimeConfig.public.appName} <${runtimeConfig.public.appNotifyEmail}>`,
+            to: email,
+            subject: `Your sign-in link for ${runtimeConfig.public.appName}`,
+            html
+          })
+        } else {
+          console.log(`[DEV] Magic link for ${email}: ${url}`)
+        }
+      },
+      expiresIn: 600 // 10 minutes
+    }),
+    emailOTP({
+      otpLength: 6,
+      expiresIn: 1800, // 30 minutes
+      async sendVerificationOTP({ email, otp, type }) {
+        const name = email.split('@')[0]
+        if (resendInstance) {
+          const html = await renderWordpressOtp(name, otp)
+          await resendInstance.emails.send({
+            from: `${runtimeConfig.public.appName} <${runtimeConfig.public.appNotifyEmail}>`,
+            to: email,
+            subject: `Your verification code: ${otp}`,
+            html
+          })
+        } else {
+          console.log(`[DEV] Email OTP for ${email} (${type}): ${otp}`)
         }
       }
     }),

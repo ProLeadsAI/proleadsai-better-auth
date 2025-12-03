@@ -15,11 +15,11 @@ let db: ReturnType<typeof createDB>
 export const getDB = () => {
   if (runtimeConfig.preset == 'node-server') {
     if (!db) {
-      db = createDB()
+      db = createDB(schema)
     }
     return db
   } else {
-    return createDB()
+    return createDB(schema)
   }
 }
 

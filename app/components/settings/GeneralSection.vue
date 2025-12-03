@@ -17,7 +17,7 @@ const toast = useToast()
 const { copy } = useClipboard()
 
 // Use timezone composable
-const { timezones, getTimezoneFromMetadata, getTimezoneValue } = useTimezone()
+const { timezones, getTimezoneValue, findTimezone } = useTimezone()
 
 const loading = ref(false)
 const teamName = ref('')
@@ -39,8 +39,8 @@ watch(() => activeOrg.value?.data, (data) => {
     lastSyncedOrgId.value = data.id
   }
 
-  // Sync timezone from metadata using composable
-  teamTimezone.value = getTimezoneFromMetadata(data.metadata)
+  // Sync timezone from organization column
+  teamTimezone.value = findTimezone(data.timezone) || timezones[0]
 }, { immediate: true, deep: true })
 
 async function updateTeam() {
@@ -53,11 +53,14 @@ async function updateTeam() {
       organizationId: activeOrg.value.data.id,
       data: {
         name: teamName.value,
-        slug: teamSlug.value,
-        metadata: {
-          timezone: getTimezoneValue(teamTimezone.value)
-        }
+        slug: teamSlug.value
       }
+    })
+
+    // Update timezone via settings endpoint
+    await $fetch(`/api/organization/${activeOrg.value.data.id}/settings`, {
+      method: 'PATCH',
+      body: { timezone: getTimezoneValue(teamTimezone.value) }
     })
 
     if (error)

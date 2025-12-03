@@ -75,7 +75,12 @@ export const organization = pgTable('organization', {
   createdAt: timestamp('created_at').notNull(),
   metadata: text('metadata'),
   stripeCustomerId: text('stripe_customer_id'),
-  referralCode: text('referral_code')
+  referralCode: text('referral_code'),
+  // Business settings
+  pricePerSq: integer('price_per_sq').default(350),
+  domainName: text('domain_name'),
+  googleMapsApiKey: text('google_maps_api_key'),
+  timezone: text('timezone').default('America/New_York')
 })
 
 export const member = pgTable(

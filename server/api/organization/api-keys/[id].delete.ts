@@ -57,6 +57,14 @@ export default defineEventHandler(async (event) => {
       }
 
       orgId = meta?.organizationId
+
+      // Block deletion of WordPress-sourced API keys
+      if (meta?.source === 'wordpress') {
+        throw createError({
+          statusCode: 403,
+          message: 'This API key cannot be deleted'
+        })
+      }
     }
   } catch {
     // Ignore parse error

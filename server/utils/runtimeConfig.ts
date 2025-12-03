@@ -25,6 +25,8 @@ export const generateRuntimeConfig = () => ({
   // Google
   googleClientId: process.env.NUXT_GOOGLE_CLIENT_ID,
   googleClientSecret: process.env.NUXT_GOOGLE_CLIENT_SECRET,
+  // Google Maps
+  googleMapsApiKey: process.env.NUXT_GOOGLE_MAPS_API_KEY,
   // DB
   redisUrl: process.env.NUXT_REDIS_URL,
   databaseUrl: process.env.NUXT_DATABASE_URL,
@@ -56,6 +58,7 @@ export const generateRuntimeConfig = () => ({
     appRepo: process.env.NUXT_APP_REPO,
     appNotifyEmail: process.env.NUXT_APP_NOTIFY_EMAIL,
     appContactEmail: process.env.NUXT_APP_CONTACT_EMAIL,
+    googleMapsApiKeyPublic: process.env.NUXT_GOOGLE_MAPS_API_KEY_PUBLIC,
     payment: process.env.NUXT_PAYMENT || 'stripe',
     auth: {
       redirectUserTo: '/',

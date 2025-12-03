@@ -61,6 +61,11 @@ const canUpdateSettings = computed(() => {
       <SettingsGeneralSection :can-edit="canUpdateSettings" />
     </div>
 
+    <!-- Business Settings -->
+    <div class="mb-8">
+      <SettingsBusinessSection :can-edit="canUpdateSettings" />
+    </div>
+
     <!-- API Keys -->
     <div class="mb-8">
       <SettingsApiKeysSection :can-manage="canUpdateSettings" />

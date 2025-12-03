@@ -1,1 +1,4 @@
-npm run lint -- --max-warnings=0
+#!/bin/sh
+export PATH="$HOME/.nvm/versions/node/v25.2.1/bin:$HOME/Library/pnpm:$PATH"
+
+pnpm run lint --max-warnings=0

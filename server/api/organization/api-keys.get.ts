@@ -47,5 +47,17 @@ export default defineEventHandler(async (event) => {
     like(apiKey.metadata, `%${orgId}%`)
   )
 
-  return keys
+  // Filter out WordPress-sourced API keys (users shouldn't see or delete these)
+  const filteredKeys = keys.filter((key) => {
+    if (!key.metadata)
+      return true
+    try {
+      const meta = typeof key.metadata === 'string' ? JSON.parse(key.metadata) : key.metadata
+      return meta.source !== 'wordpress'
+    } catch {
+      return true
+    }
+  })
+
+  return filteredKeys
 })
