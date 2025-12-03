@@ -10,6 +10,7 @@
       "submit": "Reset Password",
       "success": "Your password has been reset successfully.",
       "errors": {
+        "otpLength": "Verification code must be 6 digits.",
         "minLength": "Password must be at least {min} characters long.",
         "passwordMismatch": "Passwords do not match."
       },

@@ -19,11 +19,16 @@ const localePath = useLocalePath()
 const runtimeConfig = useRuntimeConfig()
 
 const state = reactive({
+  otp: undefined as string | undefined,
   password: undefined as string | undefined,
   confirmPassword: undefined as string | undefined
 })
 
+// Get email from query params (passed from forgot-password page)
+const email = computed(() => route.query.email as string || '')
+
 const schema = z.object({
+  otp: z.string().length(6, t('resetPassword.errors.otpLength')),
   password: z.string().min(8, t('resetPassword.errors.minLength', { min: 8 })),
   confirmPassword: z.string().min(8, t('resetPassword.errors.minLength', { min: 8 })).refine(val => val === state.password, {
     message: t('resetPassword.errors.passwordMismatch')
@@ -38,10 +43,20 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value)
     return
 
+  if (!email.value) {
+    toast.add({
+      title: 'Email is required. Please go back to forgot password page.',
+      color: 'error'
+    })
+    return
+  }
+
   loading.value = true
-  const { error } = await auth.resetPassword({
-    newPassword: event.data.password,
-    token: route.query.token as string
+  // Use emailOTP-based reset password
+  const { error } = await auth.client.emailOtp.resetPassword({
+    email: email.value,
+    otp: event.data.otp,
+    password: event.data.password
   })
 
   if (error) {
@@ -81,6 +96,23 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           class="space-y-4"
           @submit="onSubmit"
         >
+          <UFormField
+            label="Verification Code"
+            name="otp"
+            required
+          >
+            <UInput
+              v-model="state.otp"
+              type="text"
+              class="w-full"
+              placeholder="Enter 6-digit code"
+              maxlength="6"
+            />
+            <template #hint>
+              <span class="text-xs text-neutral-500">Check your email for the code</span>
+            </template>
+          </UFormField>
+
           <UFormField
             :label="t('resetPassword.password')"
             name="password"

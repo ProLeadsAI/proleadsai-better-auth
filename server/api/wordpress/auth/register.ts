@@ -13,7 +13,12 @@ export default defineEventHandler(async (event) => {
   })
 
   if (event.method === 'OPTIONS') {
-    return ''
+    setResponseStatus(event, 204)
+    return null
+  }
+
+  if (event.method !== 'POST') {
+    throw createError({ statusCode: 405, message: 'Method not allowed' })
   }
 
   const body = await readBody(event)

@@ -33,9 +33,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     return
 
   loading.value = true
-  const { error } = await auth.forgetPassword({
-    email: event.data.email,
-    redirectTo: localePath('/reset-password')
+  // Use emailOTP-based forget password flow
+  const { error } = await auth.client.forgetPassword.emailOtp({
+    email: event.data.email
   })
 
   if (error) {
@@ -48,6 +48,11 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     toast.add({
       title: t('forgotPassword.success'),
       color: 'success'
+    })
+    // Navigate to reset password page with email
+    await navigateTo({
+      path: localePath('/reset-password'),
+      query: { email: event.data.email }
     })
   }
   loading.value = false

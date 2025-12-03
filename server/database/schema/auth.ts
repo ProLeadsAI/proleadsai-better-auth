@@ -80,7 +80,9 @@ export const organization = pgTable('organization', {
   pricePerSq: integer('price_per_sq').default(350),
   domainName: text('domain_name'),
   googleMapsApiKey: text('google_maps_api_key'),
-  timezone: text('timezone').default('America/New_York')
+  timezone: text('timezone').default('America/New_York'),
+  // Source of organization creation (e.g., 'wordpress', 'web', etc.)
+  source: text('source')
 })
 
 export const member = pgTable(

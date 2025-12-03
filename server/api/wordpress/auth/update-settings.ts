@@ -3,7 +3,7 @@
  * Updates Google Maps API key and price per sq ft
  */
 
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { member, organization } from '../../../database/schema'
 import { getDB } from '../../../utils/db'
 
@@ -15,7 +15,12 @@ export default defineEventHandler(async (event) => {
   })
 
   if (event.method === 'OPTIONS') {
-    return ''
+    setResponseStatus(event, 204)
+    return null
+  }
+
+  if (event.method !== 'POST') {
+    throw createError({ statusCode: 405, message: 'Method not allowed' })
   }
 
   const body = await readBody(event)
@@ -34,27 +39,23 @@ export default defineEventHandler(async (event) => {
 
   const db = getDB()
 
-  // Find user's WordPress organization (the one with source: 'wordpress' in metadata)
-  const userOrgs = await db.query.member.findMany({
-    where: eq(member.userId, userId),
-    with: { organization: true }
-  })
+  // Find user's WordPress organization using source column
+  const memberships = await db.select().from(member).where(eq(member.userId, userId))
 
-  // Find the WordPress-created org
-  const userOrg = userOrgs.find((m) => {
-    if (!m.organization?.metadata)
-      return false
-    try {
-      const meta = typeof m.organization.metadata === 'string'
-        ? JSON.parse(m.organization.metadata)
-        : m.organization.metadata
-      return meta.source === 'wordpress'
-    } catch {
-      return false
+  if (!memberships.length) {
+    throw createError({ statusCode: 404, message: 'WordPress organization not found' })
+  }
+
+  let userOrgId: string | null = null
+  for (const m of memberships) {
+    const [org] = await db.select().from(organization).where(and(eq(organization.id, m.organizationId), eq(organization.source, 'wordpress'))).limit(1)
+    if (org) {
+      userOrgId = org.id
+      break
     }
-  })
+  }
 
-  if (!userOrg) {
+  if (!userOrgId) {
     throw createError({ statusCode: 404, message: 'WordPress organization not found' })
   }
 
@@ -77,10 +78,8 @@ export default defineEventHandler(async (event) => {
     let newSlug = baseSlug
     let suffix = 0
     while (true) {
-      const existing = await db.query.organization.findFirst({
-        where: eq(organization.slug, newSlug)
-      })
-      if (!existing || existing.id === userOrg.organizationId)
+      const existing = await db.select().from(organization).where(eq(organization.slug, newSlug)).limit(1)
+      if (!existing.length || existing[0].id === userOrgId)
         break
       suffix++
       newSlug = `${baseSlug}-${suffix}`
@@ -93,7 +92,8 @@ export default defineEventHandler(async (event) => {
   }
 
   if (pricePerSq !== undefined) {
-    updates.pricePerSq = Number.parseInt(pricePerSq, 10) || 750
+    const parsed = typeof pricePerSq === 'number' ? pricePerSq : Number.parseInt(pricePerSq, 10)
+    updates.pricePerSq = Number.isNaN(parsed) ? 750 : parsed
   }
 
   if (timezone !== undefined) {
@@ -101,10 +101,10 @@ export default defineEventHandler(async (event) => {
   }
 
   if (Object.keys(updates).length > 0) {
-    console.log('[WordPress] Updating org', userOrg.organizationId, 'with:', updates)
+    console.log('[WordPress] Updating org', userOrgId, 'with:', updates)
     await db.update(organization)
       .set(updates)
-      .where(eq(organization.id, userOrg.organizationId))
+      .where(eq(organization.id, userOrgId))
     console.log('[WordPress] Update complete')
   } else {
     console.log('[WordPress] No updates to apply')

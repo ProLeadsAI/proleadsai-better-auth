@@ -9,25 +9,20 @@ export function useTimezone() {
     { label: 'Mountain Time (MST)', value: 'America/Denver' },
     { label: 'Pacific Time (PST)', value: 'America/Los_Angeles' },
     { label: 'Alaska Time (AKT)', value: 'America/Anchorage' },
-    { label: 'Hawaii Time (HST)', value: 'Pacific/Honolulu' },
-    { label: 'UTC', value: 'UTC' },
-    { label: 'London (GMT)', value: 'Europe/London' },
-    { label: 'Paris (CET)', value: 'Europe/Paris' },
-    { label: 'Berlin (CET)', value: 'Europe/Berlin' },
-    { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
-    { label: 'Sydney (AEST)', value: 'Australia/Sydney' }
+    { label: 'Hawaii Time (HST)', value: 'Pacific/Honolulu' }
   ]
 
   const defaultTimezone = timezones[0] // America/New_York
 
   /**
    * Find timezone object by value string
+   * Returns default (Eastern) if not found in list
    */
   function findTimezone(value: string | null | undefined) {
     if (!value)
       return defaultTimezone
     const found = timezones.find(t => t.value === value)
-    return found || { label: value, value }
+    return found || defaultTimezone
   }
 
   /**
