@@ -41,6 +41,11 @@ const isEmailVerifyModalOpen = ref(false)
 const resendLoading = ref(false)
 let unverifiedEmail = ''
 
+// Magic link state
+const showMagicLink = ref(false)
+const magicLinkEmail = ref('')
+const magicLinkSent = ref(false)
+
 async function onSocialLogin(action: 'google' | 'github') {
   loading.value = true
   loadingAction.value = action
@@ -96,6 +101,30 @@ async function handleResendEmail() {
   isEmailVerifyModalOpen.value = false
   resendLoading.value = false
 }
+
+async function onMagicLinkSubmit() {
+  if (loading.value || !magicLinkEmail.value)
+    return
+  loading.value = true
+  loadingAction.value = 'magicLink'
+  const { error } = await auth.client.signIn.magicLink({
+    email: magicLinkEmail.value,
+    callbackURL: redirectTo.value
+  })
+  if (error) {
+    toast.add({
+      title: error.message,
+      color: 'error'
+    })
+  } else {
+    magicLinkSent.value = true
+    toast.add({
+      title: t('signIn.magicLinkSent'),
+      color: 'success'
+    })
+  }
+  loading.value = false
+}
 </script>
 
 <template>
@@ -136,7 +165,61 @@ async function handleResendEmail() {
 
         <USeparator :label="t('signIn.or')" />
 
+        <!-- Magic Link Option -->
+        <div
+          v-if="showMagicLink"
+          class="space-y-4"
+        >
+          <div v-if="!magicLinkSent">
+            <UFormField
+              :label="t('signIn.email')"
+              name="magicLinkEmail"
+              required
+            >
+              <UInput
+                v-model="magicLinkEmail"
+                type="email"
+                class="w-full"
+                :placeholder="t('signIn.emailPlaceholder')"
+                autocomplete="email"
+              />
+            </UFormField>
+            <UButton
+              color="primary"
+              block
+              class="mt-4"
+              :disabled="loading || !magicLinkEmail"
+              :loading="loading && loadingAction === 'magicLink'"
+              @click="onMagicLinkSubmit"
+            >
+              {{ t('signIn.sendMagicLink') }}
+            </UButton>
+          </div>
+          <div
+            v-else
+            class="text-center py-4"
+          >
+            <UIcon
+              name="i-heroicons-envelope"
+              class="w-12 h-12 text-primary mx-auto mb-2"
+            />
+            <p class="text-sm text-muted">
+              {{ t('signIn.magicLinkSentDesc') }}
+            </p>
+          </div>
+          <UButton
+            variant="link"
+            color="neutral"
+            block
+            @click="showMagicLink = false; magicLinkSent = false"
+          >
+            {{ t('signIn.backToPassword') }}
+          </UButton>
+        </div>
+
+        <!-- Password Login Form -->
         <UForm
+          v-else
           :schema="schema"
           :state="state"
           class="space-y-4"
@@ -184,6 +267,16 @@ async function handleResendEmail() {
               {{ t('signIn.forgotPassword') }}
             </UButton>
           </div>
+
+          <UButton
+            type="button"
+            variant="link"
+            color="neutral"
+            block
+            @click="showMagicLink = true"
+          >
+            {{ t('signIn.useMagicLink') }}
+          </UButton>
 
           <UButton
             type="submit"

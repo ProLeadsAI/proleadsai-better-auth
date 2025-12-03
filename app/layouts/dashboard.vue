@@ -266,16 +266,33 @@ const activeOrgSlug = computed(() => {
   return activeOrg.value?.data?.slug || 't'
 })
 
-// Avatar initials fallback
+// Avatar initials fallback - use email if no name
 const userInitials = computed(() => {
-  if (!user.value?.name)
-    return '?'
-  return user.value.name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
+  if (user.value?.name) {
+    return user.value.name
+      .split(' ')
+      .map(n => n.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
+  // Fallback to first letter of email
+  if (user.value?.email) {
+    return user.value.email.charAt(0).toUpperCase()
+  }
+  return '?'
+})
+
+// Display name fallback - use email username if no name
+const userDisplayName = computed(() => {
+  if (user.value?.name) {
+    return user.value.name
+  }
+  // Fallback to email username (part before @)
+  if (user.value?.email) {
+    return user.value.email.split('@')[0]
+  }
+  return 'User'
 })
 
 // Get needsUpgrade from the SSR data
@@ -520,7 +537,7 @@ async function createTeam() {
                   v-if="!isCollapsed"
                   class="text-xs ml-2"
                 >
-                  {{ user?.name }}
+                  {{ userDisplayName }}
                 </span>
               </div>
               <UIcon
@@ -583,7 +600,7 @@ async function createTeam() {
                       </UAvatar>
                       <div class="flex-1 min-w-0 text-left">
                         <p class="text-sm font-medium truncate">
-                          {{ user?.name }}
+                          {{ userDisplayName }}
                         </p>
                         <p class="text-xs text-muted-foreground truncate">
                           {{ user?.email }}

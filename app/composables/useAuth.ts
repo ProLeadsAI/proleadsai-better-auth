@@ -4,7 +4,7 @@ import type {
 } from 'better-auth/client'
 import type { RouteLocationRaw } from 'vue-router'
 import { stripeClient } from '@better-auth/stripe/client'
-import { adminClient, apiKeyClient, inferAdditionalFields, organizationClient } from 'better-auth/client/plugins'
+import { adminClient, apiKeyClient, inferAdditionalFields, magicLinkClient, organizationClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 
@@ -43,6 +43,7 @@ export function useAuth() {
         enableMetadata: true
       }),
       apiKeyClient(),
+      magicLinkClient(),
       stripeClient({
         subscription: true
       })

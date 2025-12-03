@@ -14,6 +14,11 @@ const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 
+// Set password state (for users without password)
+const setNewPassword = ref('')
+const setConfirmPassword = ref('')
+const settingPassword = ref(false)
+
 // Loading states
 const updatingName = ref(false)
 const updatingEmail = ref(false)
@@ -190,6 +195,39 @@ async function changePassword() {
     toast.add({ title: 'Failed to change password', description: e.message, color: 'error' })
   } finally {
     updatingPassword.value = false
+  }
+}
+
+// Set password (for users without one)
+async function setPassword() {
+  if (setNewPassword.value !== setConfirmPassword.value) {
+    toast.add({ title: 'Passwords do not match', color: 'error' })
+    return
+  }
+
+  if (setNewPassword.value.length < 8) {
+    toast.add({ title: 'Password must be at least 8 characters', color: 'error' })
+    return
+  }
+
+  settingPassword.value = true
+  try {
+    await $fetch('/api/user/set-password', {
+      method: 'POST',
+      body: {
+        password: setNewPassword.value,
+        confirmPassword: setConfirmPassword.value
+      }
+    })
+    toast.add({ title: 'Password set successfully', color: 'success' })
+    setNewPassword.value = ''
+    setConfirmPassword.value = ''
+    // Refresh accounts to show credential account
+    await fetchAccounts()
+  } catch (e: any) {
+    toast.add({ title: 'Failed to set password', description: e.data?.message || e.message, color: 'error' })
+  } finally {
+    settingPassword.value = false
   }
 }
 
@@ -503,28 +541,50 @@ watch(() => user.value?.name, (newName) => {
 
       <div
         v-else
-        class="flex items-center gap-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"
+        class="space-y-4"
       >
-        <UIcon
-          name="i-lucide-info"
-          class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0"
-        />
-        <div class="flex-1">
-          <p class="text-sm text-amber-800 dark:text-amber-200">
-            You signed up with a social account. To add a password, use the "Forgot Password" option on the sign-in page.
-          </p>
+        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div class="flex items-start gap-3">
+            <UIcon
+              name="i-lucide-info"
+              class="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5"
+            />
+            <p class="text-sm text-blue-800 dark:text-blue-200">
+              You signed up without a password. Set one below to enable email & password sign-in.
+            </p>
+          </div>
         </div>
-        <NuxtLink
-          to="/forgot-password"
-          class="shrink-0"
-        >
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <UFormField label="New Password">
+            <UInput
+              v-model="setNewPassword"
+              type="password"
+              placeholder="••••••••"
+              autocomplete="new-password"
+            />
+          </UFormField>
+
+          <UFormField label="Confirm Password">
+            <UInput
+              v-model="setConfirmPassword"
+              type="password"
+              placeholder="••••••••"
+              autocomplete="new-password"
+              @keyup.enter="setPassword"
+            />
+          </UFormField>
+        </div>
+
+        <div class="flex justify-end">
           <UButton
-            variant="outline"
-            size="sm"
+            :loading="settingPassword"
+            :disabled="!setNewPassword || !setConfirmPassword || setNewPassword.length < 8"
+            @click="setPassword"
           >
             Set Password
           </UButton>
-        </NuxtLink>
+        </div>
       </div>
     </div>
 

@@ -21,7 +21,12 @@
       "emailNotVerifiedDesc": "Please verify your email address to continue.",
       "sendEmail": "Send Verification Email",
       "sendEmailSuccess": "Verification email has been sent",
-      "sendEmailError": "Failed to send verification email"
+      "sendEmailError": "Failed to send verification email",
+      "useMagicLink": "Sign in with Magic Link",
+      "sendMagicLink": "Send Magic Link",
+      "magicLinkSent": "Magic link sent!",
+      "magicLinkSentDesc": "Check your email for a sign-in link. You can close this page.",
+      "backToPassword": "Back to password sign in"
     }
   },
   "zh-CN": {
@@ -49,7 +54,12 @@
       "resendEmailError": "发送验证邮件失败",
       "sendEmail": "发送验证邮件",
       "sendEmailSuccess": "验证邮件已发送",
-      "sendEmailError": "发送验证邮件失败"
+      "sendEmailError": "发送验证邮件失败",
+      "useMagicLink": "使用魔法链接登录",
+      "sendMagicLink": "发送魔法链接",
+      "magicLinkSent": "魔法链接已发送！",
+      "magicLinkSentDesc": "请检查您的邮箱获取登录链接。您可以关闭此页面。",
+      "backToPassword": "返回密码登录"
     }
   },
   "ja": {
@@ -77,7 +87,12 @@
       "resendEmailError": "確認メールの送信に失敗しました",
       "sendEmail": "認証メールを送信",
       "sendEmailSuccess": "認証メールを送信しました",
-      "sendEmailError": "認証メールの送信に失敗しました"
+      "sendEmailError": "認証メールの送信に失敗しました",
+      "useMagicLink": "マジックリンクでログイン",
+      "sendMagicLink": "マジックリンクを送信",
+      "magicLinkSent": "マジックリンクを送信しました！",
+      "magicLinkSentDesc": "メールでログインリンクをご確認ください。このページは閉じても構いません。",
+      "backToPassword": "パスワードログインに戻る"
     }
   },
   "fr": {
@@ -105,7 +120,12 @@
       "resendEmailError": "Échec de l'envoi de l'e-mail de vérification",
       "sendEmail": "Envoyer l'e-mail de vérification",
       "sendEmailSuccess": "L'e-mail de vérification a été envoyé",
-      "sendEmailError": "Échec de l'envoi de l'e-mail de vérification"
+      "sendEmailError": "Échec de l'envoi de l'e-mail de vérification",
+      "useMagicLink": "Se connecter avec un lien magique",
+      "sendMagicLink": "Envoyer le lien magique",
+      "magicLinkSent": "Lien magique envoyé !",
+      "magicLinkSentDesc": "Vérifiez votre e-mail pour le lien de connexion. Vous pouvez fermer cette page.",
+      "backToPassword": "Retour à la connexion par mot de passe"
     }
   }
 }
