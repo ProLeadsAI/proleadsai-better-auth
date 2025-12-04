@@ -12,8 +12,8 @@ export default defineEventHandler(async (event) => {
   })
 
   // Handle preflight
-  if (event.method === 'OPTIONS') {
-    return ''
+  if (getMethod(event) === 'OPTIONS') {
+    return null
   }
 
   const orgId = getRouterParam(event, 'orgId')

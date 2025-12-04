@@ -11,6 +11,18 @@ import {
 } from '../../../utils/roofCalculations'
 
 export default defineEventHandler(async (event) => {
+  // Set CORS headers
+  setResponseHeaders(event, {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Accept'
+  })
+
+  // Handle preflight
+  if (getMethod(event) === 'OPTIONS') {
+    return null
+  }
+
   const query = getQuery(event)
   const orgId = getRouterParam(event, 'orgId')
 

@@ -4,7 +4,7 @@
  */
 
 import { createHash } from 'node:crypto'
-import { and, avg, count, desc, eq, gte, lte } from 'drizzle-orm'
+import { and, avg, count, countDistinct, desc, eq, gte, lte } from 'drizzle-orm'
 import { addresses, apiKey, contacts, leads, member, organization, submissions } from '../../database/schema'
 import { getDB } from '../../utils/db'
 
@@ -92,33 +92,137 @@ export default defineEventHandler(async (event) => {
   }
 
   // Get counts in parallel
-  const [leadsCount, contactsCount, submissionsCount, addressesCount, avgEstimate, recentAddresses] = await Promise.all([
+  const [leadsCount, contactsCount, submissionsCount, addressesCount, avgEstimate, uniqueSessionsCount, recentAddresses, recentSubmissions] = await Promise.all([
     db.select({ count: count() }).from(leads).where(buildDateFilter(leads)),
     db.select({ count: count() }).from(contacts).where(buildDateFilter(contacts)),
     db.select({ count: count() }).from(submissions).where(buildDateFilter(submissions)),
     db.select({ count: count() }).from(addresses).where(buildDateFilter(addresses)),
     db.select({ avg: avg(addresses.estimate) }).from(addresses).where(buildDateFilter(addresses)),
+    // Count unique sessions from leads table (each session = unique user)
+    db.select({ count: countDistinct(leads.sessionId) }).from(leads).where(buildDateFilter(leads)),
     db.query.addresses.findMany({
       where: buildDateFilter(addresses),
       orderBy: [desc(addresses.createdAt)],
-      limit: 5
+      limit: 10
+    }),
+    db.query.submissions.findMany({
+      where: buildDateFilter(submissions),
+      orderBy: [desc(submissions.createdAt)],
+      limit: 10,
+      with: {
+        addresses: true
+      }
     })
   ])
+
+  // Generate a short user ID from sessionId (last 4 chars)
+  const getShortUserId = (sessionId: string | null) => {
+    if (!sessionId)
+      return null
+    // Extract the random part after the last underscore
+    const parts = sessionId.split('_')
+    const randomPart = parts[parts.length - 1] || sessionId
+    return randomPart.slice(0, 4).toUpperCase()
+  }
+
+  // Get sessionId for an address by looking up its lead
+  const addressLeadMap = new Map<string, string | null>()
+  for (const addr of recentAddresses) {
+    if (addr.leadId) {
+      const lead = await db.query.leads.findFirst({
+        where: eq(leads.id, addr.leadId),
+        columns: { sessionId: true }
+      })
+      addressLeadMap.set(addr.id, lead?.sessionId || null)
+    }
+  }
+
+  // Get all submission address IDs to exclude from searches
+  const submissionAddressIds = new Set<string>()
+  for (const s of recentSubmissions) {
+    if (s.addresses) {
+      for (const addr of s.addresses) {
+        submissionAddressIds.add(addr.id)
+      }
+    }
+  }
+
+  // Build a map of sessionId + address -> has submission (to dedupe same address in same session)
+  const submittedAddressBySession = new Set<string>()
+  for (const s of recentSubmissions) {
+    const sessionId = s.sessionId || s.toolSessionId
+    if (sessionId && s.addresses) {
+      for (const addr of s.addresses) {
+        // Create a key combining session and address location
+        const addressKey = `${sessionId}:${addr.streetAddress}:${addr.addressLocality}`
+        submittedAddressBySession.add(addressKey)
+      }
+    }
+  }
+
+  // Combine and sort recent activity - dedupe by excluding searches for the SAME address that was submitted
+  const recentActivity = [
+    // Only include addresses that are NOT linked to a submission and NOT the same address submitted in same session
+    ...recentAddresses
+      .filter((a) => {
+        // Exclude if this address is directly linked to a submission
+        if (a.submissionId)
+          return false
+        // Exclude if this exact address was submitted in the same session
+        const sessionId = addressLeadMap.get(a.id)
+        if (sessionId) {
+          const addressKey = `${sessionId}:${a.streetAddress}:${a.addressLocality}`
+          if (submittedAddressBySession.has(addressKey))
+            return false
+        }
+        return true
+      })
+      .map((a) => {
+        const sessionId = addressLeadMap.get(a.id) || null
+        return {
+          id: a.id,
+          type: 'search' as const,
+          streetAddress: a.streetAddress,
+          addressLocality: a.addressLocality,
+          addressRegion: a.addressRegion,
+          roofAreaSqFt: a.roofAreaSqFt,
+          estimate: a.estimate,
+          name: null,
+          sessionId,
+          userId: getShortUserId(sessionId),
+          createdAt: a.createdAt
+        }
+      }),
+    // Include all submissions
+    ...recentSubmissions
+      .filter(s => s.addresses && s.addresses.length > 0)
+      .map((s) => {
+        const sessionId = s.sessionId || s.toolSessionId
+        return {
+          id: s.id,
+          type: 'submission' as const,
+          streetAddress: s.addresses[0]?.streetAddress,
+          addressLocality: s.addresses[0]?.addressLocality,
+          addressRegion: s.addresses[0]?.addressRegion,
+          roofAreaSqFt: s.addresses[0]?.roofAreaSqFt,
+          estimate: s.addresses[0]?.estimate,
+          name: s.name,
+          sessionId,
+          userId: getShortUserId(sessionId),
+          createdAt: s.createdAt
+        }
+      })
+  ]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10)
 
   return {
     leads: leadsCount[0]?.count ?? 0,
     contacts: contactsCount[0]?.count ?? 0,
     submissions: submissionsCount[0]?.count ?? 0,
     totalSearches: addressesCount[0]?.count ?? 0,
+    uniqueUsers: uniqueSessionsCount[0]?.count ?? 0,
     avgEstimate: Math.round(Number(avgEstimate[0]?.avg) || 0),
-    recentSearches: recentAddresses.map(a => ({
-      id: a.id,
-      streetAddress: a.streetAddress,
-      addressLocality: a.addressLocality,
-      addressRegion: a.addressRegion,
-      roofAreaSqFt: a.roofAreaSqFt,
-      estimate: a.estimate,
-      createdAt: a.createdAt
-    }))
+    recentSearches: recentActivity
   }
 })
