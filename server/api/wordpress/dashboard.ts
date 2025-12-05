@@ -137,48 +137,50 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Get all submission address IDs to exclude from searches
-  const submissionAddressIds = new Set<string>()
+  // Build a map of submission address IDs to submission info (for marking searches that converted)
+  const submissionAddressMap = new Map<string, { submissionId: string, name: string | null }>()
   for (const s of recentSubmissions) {
     if (s.addresses) {
       for (const addr of s.addresses) {
-        submissionAddressIds.add(addr.id)
+        submissionAddressMap.set(addr.id, { submissionId: s.id, name: s.name })
       }
     }
   }
 
-  // Build a map of sessionId + address -> has submission (to dedupe same address in same session)
-  const submittedAddressBySession = new Set<string>()
+  // Build a map of sessionId + address -> submission info (for matching by location)
+  const submittedAddressBySession = new Map<string, { submissionId: string, name: string | null }>()
   for (const s of recentSubmissions) {
     const sessionId = s.sessionId || s.toolSessionId
     if (sessionId && s.addresses) {
       for (const addr of s.addresses) {
-        // Create a key combining session and address location
         const addressKey = `${sessionId}:${addr.streetAddress}:${addr.addressLocality}`
-        submittedAddressBySession.add(addressKey)
+        submittedAddressBySession.set(addressKey, { submissionId: s.id, name: s.name })
       }
     }
   }
 
-  // Combine and sort recent activity - dedupe by excluding searches for the SAME address that was submitted
+  // Combine and sort recent activity - show ALL searches, mark which ones converted to leads
   const recentActivity = [
-    // Only include addresses that are NOT linked to a submission and NOT the same address submitted in same session
+    // Include ALL addresses (searches), mark if they converted to a submission
     ...recentAddresses
-      .filter((a) => {
-        // Exclude if this address is directly linked to a submission
-        if (a.submissionId)
-          return false
-        // Exclude if this exact address was submitted in the same session
-        const sessionId = addressLeadMap.get(a.id)
-        if (sessionId) {
-          const addressKey = `${sessionId}:${a.streetAddress}:${a.addressLocality}`
-          if (submittedAddressBySession.has(addressKey))
-            return false
-        }
-        return true
-      })
       .map((a) => {
         const sessionId = addressLeadMap.get(a.id) || null
+
+        // Check if this search converted to a submission
+        let convertedTo: { submissionId: string, name: string | null } | null = null
+
+        // First check by direct address ID
+        if (a.submissionId || submissionAddressMap.has(a.id)) {
+          convertedTo = submissionAddressMap.get(a.id) || { submissionId: a.submissionId!, name: null }
+        }
+        // Then check by session + address location match
+        else if (sessionId) {
+          const addressKey = `${sessionId}:${a.streetAddress}:${a.addressLocality}`
+          if (submittedAddressBySession.has(addressKey)) {
+            convertedTo = submittedAddressBySession.get(addressKey)!
+          }
+        }
+
         return {
           id: a.id,
           type: 'search' as const,
@@ -187,34 +189,36 @@ export default defineEventHandler(async (event) => {
           addressRegion: a.addressRegion,
           roofAreaSqFt: a.roofAreaSqFt,
           estimate: a.estimate,
-          name: null,
+          name: convertedTo?.name || null,
           sessionId,
           userId: getShortUserId(sessionId),
-          createdAt: a.createdAt
+          createdAt: a.createdAt,
+          convertedToLead: !!convertedTo
         }
       }),
-    // Include all submissions
+    // Include all submissions (even without linked addresses)
     ...recentSubmissions
-      .filter(s => s.addresses && s.addresses.length > 0)
       .map((s) => {
         const sessionId = s.sessionId || s.toolSessionId
+        const firstAddress = s.addresses?.[0]
         return {
           id: s.id,
           type: 'submission' as const,
-          streetAddress: s.addresses[0]?.streetAddress,
-          addressLocality: s.addresses[0]?.addressLocality,
-          addressRegion: s.addresses[0]?.addressRegion,
-          roofAreaSqFt: s.addresses[0]?.roofAreaSqFt,
-          estimate: s.addresses[0]?.estimate,
+          streetAddress: firstAddress?.streetAddress || null,
+          addressLocality: firstAddress?.addressLocality || null,
+          addressRegion: firstAddress?.addressRegion || null,
+          roofAreaSqFt: firstAddress?.roofAreaSqFt || null,
+          estimate: firstAddress?.estimate || null,
           name: s.name,
           sessionId,
           userId: getShortUserId(sessionId),
-          createdAt: s.createdAt
+          createdAt: s.createdAt,
+          convertedToLead: false
         }
       })
   ]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 10)
+    .slice(0, 20)
 
   return {
     leads: leadsCount[0]?.count ?? 0,

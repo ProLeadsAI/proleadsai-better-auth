@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { addresses, leads, organization as organizationTable, submissions } from '../../../../database/schema'
 import { validateApiKey } from '../../../../utils/apiKeyAuth'
 import { useDB } from '../../../../utils/db'
@@ -77,16 +77,27 @@ export default defineEventHandler(async (event) => {
     // Find the lead with this toolSessionId
     const lead = await db.query.leads.findFirst({
       where: and(
-        eq(leads.sessionId, body.toolSessionId),
+        eq(leads.toolSessionId, body.toolSessionId),
         eq(leads.organizationId, orgId)
       )
     })
 
     if (lead) {
-      // Update all addresses from that lead to also link to this submission
+      // Link all addresses from that lead to this submission
       await db.update(addresses)
         .set({ submissionId: newSubmission.id })
         .where(eq(addresses.leadId, lead.id))
+
+      // Only mark the most recent address as 'submitted'
+      const mostRecentAddress = await db.query.addresses.findFirst({
+        where: eq(addresses.leadId, lead.id),
+        orderBy: [desc(addresses.createdAt)]
+      })
+      if (mostRecentAddress) {
+        await db.update(addresses)
+          .set({ source: 'submitted' })
+          .where(eq(addresses.id, mostRecentAddress.id))
+      }
 
       // Update the lead with contact info from submission
       if (body.name || body.email || body.phone) {
@@ -127,8 +138,12 @@ export default defineEventHandler(async (event) => {
 
   // TODO: Send email notifications to org members
 
+  // Generate a new toolSessionId for the next flow (like the old app did)
+  const newToolSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+
   return {
     success: true,
-    id: newSubmission.id
+    id: newSubmission.id,
+    toolSessionId: newToolSessionId
   }
 })

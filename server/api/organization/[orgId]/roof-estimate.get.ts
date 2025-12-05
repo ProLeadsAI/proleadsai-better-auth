@@ -35,7 +35,9 @@ export default defineEventHandler(async (event) => {
   const lat = query.lat ? Number(query.lat) : null
   const lng = query.lng ? Number(query.lng) : null
   const address = query.address as string | undefined
-  const sessionId = (query.sessionId as string) || `roof_search_${Date.now()}`
+  const sessionId = (query.sessionId as string) || `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+  // toolSessionId groups searches in a flow - use provided or generate new
+  const toolSessionId = (query.toolSessionId as string) || `tool_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 
   if (!address && (lat === null || lng === null)) {
     throw createError({
@@ -44,17 +46,29 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const config = useRuntimeConfig()
-  const apiKey = config.googleMapsApiKey
-  if (!apiKey) {
-    throw createError({ statusCode: 500, message: 'Google Maps API key not configured' })
-  }
-
-  // Get organization's price per square
+  // Get organization settings (including their Google Maps API key)
   const org = await db.query.organization.findFirst({
     where: eq(organizationTable.id, orgId)
   })
-  const pricePerSq = org?.pricePerSq ?? 350
+
+  if (!org) {
+    throw createError({ statusCode: 404, message: 'Organization not found' })
+  }
+
+  // Use org's API key for WordPress sources, fall back to server key for other sources
+  const config = useRuntimeConfig()
+  const apiKey = org.googleMapsApiKey || config.googleMapsApiKey
+
+  if (!apiKey) {
+    throw createError({
+      statusCode: 500,
+      message: org.source === 'wordpress'
+        ? 'Google Maps API key not configured for this organization. Please add your API key in WordPress settings.'
+        : 'Google Maps API key not configured'
+    })
+  }
+
+  const pricePerSq = org.pricePerSq ?? 350
 
   try {
     let coordinates: { lat: number, lng: number }
@@ -105,10 +119,10 @@ export default defineEventHandler(async (event) => {
     const roofOutlinePoints = extractRoofOutlinePoints(solarData.solarPotential.roofSegmentStats)
     const roofPitchInfo = categorizeRoofPitch(solarData.solarPotential.roofSegmentStats)
 
-    // Check for existing lead with this session
+    // Check for existing lead with this toolSessionId (groups searches in a flow)
     const existingLead = await db.query.leads.findFirst({
       where: and(
-        eq(leads.sessionId, sessionId),
+        eq(leads.toolSessionId, toolSessionId),
         eq(leads.organizationId, orgId)
       )
     })
@@ -124,7 +138,8 @@ export default defineEventHandler(async (event) => {
         phone: null,
         labels: ['roof-estimate-search'],
         metadata: {},
-        sessionId
+        sessionId,
+        toolSessionId
       }).returning()
       leadId = newLead.id
     }
@@ -162,6 +177,7 @@ export default defineEventHandler(async (event) => {
       roofOutlinePoints,
       roofPitch: restPitch,
       sessionId,
+      toolSessionId,
       success: true
     }
   } catch (error: any) {
@@ -169,6 +185,7 @@ export default defineEventHandler(async (event) => {
     return {
       error: true,
       sessionId,
+      toolSessionId,
       statusCode: error.statusCode || 500,
       message: error.message || 'Failed to get roof estimate'
     }
