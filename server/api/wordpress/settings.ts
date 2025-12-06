@@ -6,7 +6,7 @@
 
 import { createHash } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
-import { apiKey, member, organization, user } from '../../database/schema'
+import { apiKey, member, organization, subscription, user } from '../../database/schema'
 import { getDB } from '../../utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -90,6 +90,15 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    // Check subscription status
+    const [sub] = await db.select().from(subscription).where(eq(subscription.referenceId, orgId)).limit(1)
+
+    // User is Pro if they have an active subscription OR are in trial period
+    const isActiveOrTrialing = sub && (sub.status === 'active' || sub.status === 'trialing')
+    const notExpired = !sub?.periodEnd || new Date(sub.periodEnd) > new Date()
+    const inTrial = sub?.trialEnd && new Date(sub.trialEnd) > new Date()
+    const isPro = isActiveOrTrialing && (notExpired || inTrial)
+
     return {
       id: org.id,
       name: org.name,
@@ -98,7 +107,10 @@ export default defineEventHandler(async (event) => {
       googleMapsApiKey: org.googleMapsApiKey,
       pricePerSq: org.pricePerSq,
       timezone: org.timezone,
-      domainName: org.domainName
+      domainName: org.domainName,
+      isPro: !!isPro,
+      plan: sub?.plan || 'free',
+      subscriptionStatus: sub?.status || null
     }
   }
 

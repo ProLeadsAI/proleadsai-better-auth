@@ -19,7 +19,12 @@ const localePath = useLocalePath()
 
 const redirectTo = computed(() => {
   const redirect = route.query.redirect as string
-  return localePath(redirect || '/')
+  // If redirect is provided, use it directly (don't process through localePath)
+  // This preserves paths like /settings/billing from external sources
+  if (redirect) {
+    return redirect.startsWith('/') ? redirect : `/${redirect}`
+  }
+  return localePath('/')
 })
 
 const schema = z.object({
@@ -45,6 +50,19 @@ let unverifiedEmail = ''
 const showMagicLink = ref(false)
 const magicLinkEmail = ref('')
 const magicLinkSent = ref(false)
+
+// Pre-populate email from URL query param
+onMounted(() => {
+  const emailParam = route.query.email as string
+  if (emailParam) {
+    state.email = emailParam
+    magicLinkEmail.value = emailParam
+    // If magic link mode requested, show it
+    if (route.query.mode === 'magic') {
+      showMagicLink.value = true
+    }
+  }
+})
 
 async function onSocialLogin(action: 'google' | 'github') {
   loading.value = true

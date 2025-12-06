@@ -21,6 +21,7 @@ console.log('Schema keys:', Object.keys(schema))
 export const createBetterAuth = () => betterAuth({
   baseURL: runtimeConfig.public.baseURL,
   trustedOrigins: [
+    'http://0.0.0.0:3000',
     'http://localhost:8787',
     'http://localhost:3000',
     'http://localhost:3001',

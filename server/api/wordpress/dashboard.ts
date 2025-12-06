@@ -5,7 +5,7 @@
 
 import { createHash } from 'node:crypto'
 import { and, avg, count, countDistinct, desc, eq, gte, lte } from 'drizzle-orm'
-import { addresses, apiKey, contacts, leads, member, organization, submissions } from '../../database/schema'
+import { addresses, apiKey, contacts, leads, member, organization, submissions, subscription } from '../../database/schema'
 import { getDB } from '../../utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -76,6 +76,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Organization not found' })
   }
 
+  // Check subscription status to determine if user is Pro
+  const [sub] = await db.select().from(subscription).where(eq(subscription.referenceId, orgId)).limit(1)
+
+  const isActiveOrTrialing = sub && (sub.status === 'active' || sub.status === 'trialing')
+  const notExpired = !sub?.periodEnd || new Date(sub.periodEnd) > new Date()
+  const inTrial = sub?.trialEnd && new Date(sub.trialEnd) > new Date()
+  const isPro = isActiveOrTrialing && (notExpired || inTrial)
+
   // Get date range from query
   const query = getQuery(event)
   const startDate = query.startDate ? new Date(query.startDate as string) : null
@@ -138,23 +146,23 @@ export default defineEventHandler(async (event) => {
   }
 
   // Build a map of submission address IDs to submission info (for marking searches that converted)
-  const submissionAddressMap = new Map<string, { submissionId: string, name: string | null }>()
+  const submissionAddressMap = new Map<string, { submissionId: string, name: string | null, email: string | null, phone: string | null }>()
   for (const s of recentSubmissions) {
     if (s.addresses) {
       for (const addr of s.addresses) {
-        submissionAddressMap.set(addr.id, { submissionId: s.id, name: s.name })
+        submissionAddressMap.set(addr.id, { submissionId: s.id, name: s.name, email: s.email, phone: s.phone })
       }
     }
   }
 
   // Build a map of sessionId + address -> submission info (for matching by location)
-  const submittedAddressBySession = new Map<string, { submissionId: string, name: string | null }>()
+  const submittedAddressBySession = new Map<string, { submissionId: string, name: string | null, email: string | null, phone: string | null }>()
   for (const s of recentSubmissions) {
     const sessionId = s.sessionId || s.toolSessionId
     if (sessionId && s.addresses) {
       for (const addr of s.addresses) {
         const addressKey = `${sessionId}:${addr.streetAddress}:${addr.addressLocality}`
-        submittedAddressBySession.set(addressKey, { submissionId: s.id, name: s.name })
+        submittedAddressBySession.set(addressKey, { submissionId: s.id, name: s.name, email: s.email, phone: s.phone })
       }
     }
   }
@@ -167,11 +175,11 @@ export default defineEventHandler(async (event) => {
         const sessionId = addressLeadMap.get(a.id) || null
 
         // Check if this search converted to a submission
-        let convertedTo: { submissionId: string, name: string | null } | null = null
+        let convertedTo: { submissionId: string, name: string | null, email: string | null, phone: string | null } | null = null
 
         // First check by direct address ID
         if (a.submissionId || submissionAddressMap.has(a.id)) {
-          convertedTo = submissionAddressMap.get(a.id) || { submissionId: a.submissionId!, name: null }
+          convertedTo = submissionAddressMap.get(a.id) || { submissionId: a.submissionId!, name: null, email: null, phone: null }
         }
         // Then check by session + address location match
         else if (sessionId) {
@@ -190,6 +198,11 @@ export default defineEventHandler(async (event) => {
           roofAreaSqFt: a.roofAreaSqFt,
           estimate: a.estimate,
           name: convertedTo?.name || null,
+          // Only include email/phone for Pro users
+          email: isPro ? (convertedTo?.email || null) : null,
+          phone: isPro ? (convertedTo?.phone || null) : null,
+          // Include leadId for deep linking (from addresses.leadId)
+          leadId: a.leadId || null,
           sessionId,
           userId: getShortUserId(sessionId),
           createdAt: a.createdAt,
@@ -210,6 +223,11 @@ export default defineEventHandler(async (event) => {
           roofAreaSqFt: firstAddress?.roofAreaSqFt || null,
           estimate: firstAddress?.estimate || null,
           name: s.name,
+          // Only include email/phone for Pro users
+          email: isPro ? s.email : null,
+          phone: isPro ? s.phone : null,
+          // Include leadId for deep linking (from the first address's leadId)
+          leadId: firstAddress?.leadId || null,
           sessionId,
           userId: getShortUserId(sessionId),
           createdAt: s.createdAt,
