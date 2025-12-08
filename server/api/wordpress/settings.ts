@@ -93,11 +93,9 @@ export default defineEventHandler(async (event) => {
     // Check subscription status
     const [sub] = await db.select().from(subscription).where(eq(subscription.referenceId, orgId)).limit(1)
 
-    // User is Pro if they have an active subscription OR are in trial period
-    const isActiveOrTrialing = sub && (sub.status === 'active' || sub.status === 'trialing')
-    const notExpired = !sub?.periodEnd || new Date(sub.periodEnd) > new Date()
-    const inTrial = sub?.trialEnd && new Date(sub.trialEnd) > new Date()
-    const isPro = isActiveOrTrialing && (notExpired || inTrial)
+    // User is Pro if they have an active or trialing subscription
+    // The status field from Stripe is the source of truth
+    const isPro = sub && (sub.status === 'active' || sub.status === 'trialing')
 
     return {
       id: org.id,

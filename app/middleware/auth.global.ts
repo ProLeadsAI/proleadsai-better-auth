@@ -43,6 +43,16 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (only === 'guest') {
     if (loggedIn.value) {
       // Guest-only routes: redirect authenticated users to specified path
+      // Check for redirect query param first (e.g., from magic link or external redirect)
+      const redirectParam = to.query.redirect as string
+      if (redirectParam) {
+        const redirectPath = redirectParam.startsWith('/') ? redirectParam : `/${redirectParam}`
+        // Avoid infinite redirect
+        if (to.path === redirectPath) {
+          return
+        }
+        return navigateTo(redirectPath)
+      }
       // Avoid infinite redirect
       if (to.path === localePath(redirectUserTo)) {
         return
