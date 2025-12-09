@@ -271,15 +271,15 @@ export default defineEventHandler(async (event) => {
     const allLines = upcomingInvoice.lines.data
 
     // Filter for proration-related line items only
-    // These typically have "Unused time" or "Remaining time" in description
+    // These typically have "Unused time on..." or "Remaining time on..." in description
+    // We must NOT include the next billing cycle charge (which also has "after [date]")
     const prorationLines = allLines.filter((line: any) => {
-      // Check if it's a proration by description or by period
+      // Only include lines explicitly marked as proration
+      // Or lines with "Unused time" or "Remaining time" which are proration credits/charges
       const desc = (line.description || '').toLowerCase()
-      const isProrationDesc = desc.includes('unused time') ||
-        desc.includes('remaining time') ||
-        desc.includes('after ')
+      const isProrationDesc = desc.includes('unused time') || desc.includes('remaining time')
 
-      return isProrationDesc || (line.proration === true)
+      return line.proration === true || isProrationDesc
     })
 
     console.log('[preview-tier-change] Proration lines:', prorationLines.map((line: any) => ({
