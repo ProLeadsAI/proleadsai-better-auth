@@ -7,7 +7,7 @@ import { admin as adminPlugin, apiKey, emailOTP, magicLink, openAPI, organizatio
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
-import { ac, admin, member, owner } from '../../shared/utils/permissions'
+import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { logAuditEvent } from './auditLogger'
 import { getDB } from './db'
 import { cacheClient, resendInstance } from './drivers'
