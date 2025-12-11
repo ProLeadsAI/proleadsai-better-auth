@@ -29,7 +29,7 @@ export const generateRuntimeConfig = () => ({
   googleMapsApiKey: process.env.NUXT_GOOGLE_MAPS_API_KEY,
   // DB
   redisUrl: process.env.NUXT_REDIS_URL,
-  databaseUrl: process.env.NUXT_DATABASE_URL,
+  databaseUrl: process.env.DATABASE_URL,
   // File
   fileManager: {
     storage: {

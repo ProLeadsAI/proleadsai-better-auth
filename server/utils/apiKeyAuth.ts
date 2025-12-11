@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { eq } from 'drizzle-orm'
-import { apiKey } from '../database/schema'
+import { apiKey } from '~~/server/db/schema'
 import { getDB } from './db'
 
 /**

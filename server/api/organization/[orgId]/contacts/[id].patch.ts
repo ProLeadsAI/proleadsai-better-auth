@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
-import { addresses, contacts } from '../../../../database/schema'
-import { requireOrgMembership } from '../../../../utils/organization'
+import { addresses, contacts } from '~~/server/db/schema'
+import { requireOrgMembership } from '~~/server/utils/organization'
 
 export default defineEventHandler(async (event) => {
   const orgId = getRouterParam(event, 'orgId')

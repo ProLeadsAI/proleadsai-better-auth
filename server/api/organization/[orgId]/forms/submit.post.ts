@@ -1,7 +1,7 @@
 import { and, desc, eq } from 'drizzle-orm'
-import { addresses, leads, organization as organizationTable, submissions } from '../../../../database/schema'
-import { validateApiKey } from '../../../../utils/apiKeyAuth'
-import { useDB } from '../../../../utils/db'
+import { addresses, leads, organization as organizationTable, submissions } from '~~/server/db/schema'
+import { validateApiKey } from '~~/server/utils/apiKeyAuth'
+import { useDB } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
   // Set CORS headers for external form submissions

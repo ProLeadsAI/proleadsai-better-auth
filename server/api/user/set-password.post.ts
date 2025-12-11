@@ -3,7 +3,7 @@
  * Uses Better Auth's built-in setPassword API
  */
 
-import { useServerAuth } from '../../utils/auth'
+import { useServerAuth } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)

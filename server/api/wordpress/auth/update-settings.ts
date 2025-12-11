@@ -4,8 +4,8 @@
  */
 
 import { and, eq } from 'drizzle-orm'
-import { member, organization } from '../../../database/schema'
-import { getDB } from '../../../utils/db'
+import { member, organization } from '~~/server/db/schema'
+import { getDB } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
   setResponseHeaders(event, {

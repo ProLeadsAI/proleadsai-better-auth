@@ -6,8 +6,8 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
-import { apiKey, member, organization } from '../../../database/schema'
-import { getDB } from '../../../utils/db'
+import { apiKey, member, organization } from '~~/server/db/schema'
+import { getDB } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
   setResponseHeaders(event, {

@@ -1,14 +1,14 @@
 import { and, eq } from 'drizzle-orm'
-import { addresses, leads, organization as organizationTable } from '../../../database/schema'
-import { useDB } from '../../../utils/db'
-import { decodeAddressFromGeocode } from '../../../utils/decodeAddressFromGeocode'
+import { addresses, leads, organization as organizationTable } from '~~/server/db/schema'
+import { useDB } from '~~/server/utils/db'
+import { decodeAddressFromGeocode } from '~~/server/utils/decodeAddressFromGeocode'
 import {
   calculateRoofArea,
   calculateRoofEstimate,
   categorizeRoofPitch,
   extractRoofOutlinePoints,
   getRoofDataFromSolar
-} from '../../../utils/roofCalculations'
+} from '~~/server/utils/roofCalculations'
 
 export default defineEventHandler(async (event) => {
   // Set CORS headers

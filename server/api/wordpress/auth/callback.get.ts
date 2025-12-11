@@ -6,9 +6,9 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
-import { apiKey, member, organization, verification } from '../../../database/schema'
-import { useServerAuth } from '../../../utils/auth'
-import { getDB } from '../../../utils/db'
+import { apiKey, member, organization, verification } from '~~/server/db/schema'
+import { useServerAuth } from '~~/server/utils/auth'
+import { getDB } from '~~/server/utils/db'
 
 function generateSlug(name: string): string {
   return name

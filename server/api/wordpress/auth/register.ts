@@ -3,7 +3,7 @@
  * Simple proxy to Better Auth's emailOTP endpoint
  */
 
-import { useServerAuth } from '../../../utils/auth'
+import { useServerAuth } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {
   setResponseHeaders(event, {

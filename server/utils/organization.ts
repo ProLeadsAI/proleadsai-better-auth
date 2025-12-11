@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { and, eq } from 'drizzle-orm'
-import { member as memberTable, organization as organizationTable } from '../database/schema'
+import { member as memberTable, organization as organizationTable } from '~~/server/db/schema'
 import { getAuthSession } from './auth'
 import { useDB } from './db'
 

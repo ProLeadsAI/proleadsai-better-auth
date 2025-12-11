@@ -6,8 +6,8 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
-import { apiKey, member, organization, user } from '../../../database/schema'
-import { getDB } from '../../../utils/db'
+import { apiKey, member, organization, user } from '~~/server/db/schema'
+import { getDB } from '~~/server/utils/db'
 
 /**
  * Find WordPress org using source column

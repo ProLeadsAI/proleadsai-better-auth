@@ -6,8 +6,8 @@ import { APIError, createAuthMiddleware, getOAuthState } from 'better-auth/api'
 import { admin as adminPlugin, apiKey, emailOTP, magicLink, openAPI, organization } from 'better-auth/plugins'
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
+import * as schema from '~~/server/db/schema'
 import { ac, admin, member, owner } from '../../shared/utils/permissions'
-import * as schema from '../database/schema'
 import { logAuditEvent } from './auditLogger'
 import { getDB } from './db'
 import { cacheClient, resendInstance } from './drivers'
@@ -488,7 +488,7 @@ export const createBetterAuth = () => betterAuth({
 let _auth: ReturnType<typeof betterAuth>
 
 // Used by npm run auth:schema only.
-const isAuthSchemaCommand = process.argv.some(arg => arg.includes('server/database/schema/auth.ts'))
+const isAuthSchemaCommand = process.argv.some(arg => arg.includes('server/db/schema/auth.ts'))
 if (isAuthSchemaCommand) {
   _auth = createBetterAuth()
 }
