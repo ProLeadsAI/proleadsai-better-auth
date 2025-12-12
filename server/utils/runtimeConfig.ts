@@ -11,7 +11,9 @@ declare module '@nuxt/schema' {
 let runtimeConfigInstance: NitroRuntimeConfig
 
 export const generateRuntimeConfig = () => ({
-  preset: process.env.NUXT_NITRO_PRESET,
+  preset: (process.env.NODE_ENV === 'development' && !process.env.NUXT_FORCE_CLOUDFLARE_DEV)
+    ? 'node-server'
+    : process.env.NUXT_NITRO_PRESET,
   betterAuthSecret: process.env.NUXT_BETTER_AUTH_SECRET,
   // Stripe
   stripeSecretKey: process.env.NUXT_STRIPE_SECRET_KEY,
@@ -25,6 +27,8 @@ export const generateRuntimeConfig = () => ({
   // Google
   googleClientId: process.env.NUXT_GOOGLE_CLIENT_ID,
   googleClientSecret: process.env.NUXT_GOOGLE_CLIENT_SECRET,
+  // Google Maps
+  googleMapsApiKey: process.env.NUXT_GOOGLE_MAPS_API_KEY,
   // DB
   redisUrl: process.env.NUXT_REDIS_URL,
   databaseUrl: process.env.DATABASE_URL,
@@ -56,6 +60,7 @@ export const generateRuntimeConfig = () => ({
     appRepo: process.env.NUXT_APP_REPO,
     appNotifyEmail: process.env.NUXT_APP_NOTIFY_EMAIL,
     appContactEmail: process.env.NUXT_APP_CONTACT_EMAIL,
+    googleMapsApiKeyPublic: process.env.NUXT_GOOGLE_MAPS_API_KEY_PUBLIC,
     payment: process.env.NUXT_PAYMENT || 'stripe',
     auth: {
       redirectUserTo: '/',
