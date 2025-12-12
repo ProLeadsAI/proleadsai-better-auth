@@ -11,7 +11,9 @@ declare module '@nuxt/schema' {
 let runtimeConfigInstance: NitroRuntimeConfig
 
 export const generateRuntimeConfig = () => ({
-  preset: process.env.NUXT_NITRO_PRESET,
+  preset: (process.env.NODE_ENV === 'development' && !process.env.NUXT_FORCE_CLOUDFLARE_DEV)
+    ? 'node-server'
+    : process.env.NUXT_NITRO_PRESET,
   betterAuthSecret: process.env.NUXT_BETTER_AUTH_SECRET,
   // Stripe
   stripeSecretKey: process.env.NUXT_STRIPE_SECRET_KEY,

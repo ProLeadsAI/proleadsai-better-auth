@@ -4,4 +4,8 @@ declare global {
   const hubKV: () => HubKV
 }
 
+declare module 'hub:kv' {
+  export const kv: HubKV
+}
+
 export {}

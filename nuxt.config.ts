@@ -1,9 +1,14 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import type { NuxtPage } from 'nuxt/schema'
 import { resolve } from 'node:path'
+import { defineNuxtConfig } from 'nuxt/config'
 import { generateRuntimeConfig } from './server/utils/runtimeConfig'
 
 console.log(`Current NODE_ENV: ${process.env.NODE_ENV}`)
+
+const effectiveNitroPreset = (process.env.NODE_ENV === 'development' && !process.env.NUXT_FORCE_CLOUDFLARE_DEV)
+  ? 'node-server'
+  : (process.env.NUXT_NITRO_PRESET || 'node-server')
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-12-10',
@@ -16,17 +21,13 @@ export default defineNuxtConfig({
     '@nuxtjs/seo',
     'nuxt-echarts',
     ...(process.env.NODE_ENV === 'test' ? ['@nuxt/test-utils/module'] : []),
-    ...(process.env.NUXT_NITRO_PRESET !== 'node-server' ? ['@nuxthub/core'] : [])
+    '@nuxthub/core'
   ],
-  ...(process.env.NUXT_NITRO_PRESET !== 'node-server'
-    ? {
-        hub: {
-          db: 'postgresql',
-          kv: true,
-          blob: true
-        } as any
-      }
-    : {}),
+  hub: {
+    db: 'postgresql',
+    kv: true,
+    blob: true
+  },
   i18n: {
     vueI18n: '~/i18n/i18n.config.ts',
     baseUrl: process.env.NUXT_APP_URL,
@@ -82,7 +83,7 @@ export default defineNuxtConfig({
     }
   },
   hooks: {
-    'pages:extend': function (pages) {
+    'pages:extend': function (pages: NuxtPage[]) {
       const pagesToRemove: NuxtPage[] = []
       pages.forEach((page) => {
         if (page.path.includes('component') || page.path.includes('/api')) {
@@ -117,8 +118,8 @@ export default defineNuxtConfig({
     }
   },
   nitro: {
-    preset: process.env.NUXT_NITRO_PRESET,
-    ...(process.env.NUXT_NITRO_PRESET === 'cloudflare-module'
+    preset: effectiveNitroPreset,
+    ...(effectiveNitroPreset === 'cloudflare-module'
       ? {
           cloudflare: {
             deployConfig: true,
@@ -127,7 +128,7 @@ export default defineNuxtConfig({
         }
       : {}),
     rollupConfig: {
-      external: process.env.NUXT_NITRO_PRESET != 'node-server' ? ['pg-native'] : undefined
+      external: effectiveNitroPreset != 'node-server' ? ['pg-native'] : undefined
     },
     esbuild: {
       options: {
@@ -151,4 +152,4 @@ export default defineNuxtConfig({
       transpile: ['zod']
     }
   }
-})
+}) as any
