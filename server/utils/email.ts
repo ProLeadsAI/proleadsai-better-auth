@@ -4,6 +4,7 @@
 
 import { render } from '@react-email/render'
 import { DeleteAccount } from '../../emails/DeleteAccount'
+import { LeadSubmitted } from '../../emails/LeadSubmitted'
 import { MagicLink } from '../../emails/MagicLink'
 import { PaymentFailed } from '../../emails/PaymentFailed'
 import { ResetPassword } from '../../emails/ResetPassword'
@@ -125,4 +126,16 @@ export async function renderMagicLink(name: string, url: string, token?: string)
 
 export async function renderWordpressOtp(name: string, otp: string): Promise<string> {
   return await render(WordpressOtp({ name, otp, appName: getAppName() }))
+}
+
+export async function renderLeadSubmitted(options: {
+  teamName: string
+  leadName?: string | null
+  leadEmail?: string | null
+  leadPhone?: string | null
+  address?: string | null
+  roofSizeSqFt?: number | null
+  roofPrice?: number | null
+}): Promise<string> {
+  return await render(LeadSubmitted({ ...options, appName: getAppName() }))
 }

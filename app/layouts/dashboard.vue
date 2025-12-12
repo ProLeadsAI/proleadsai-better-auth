@@ -473,17 +473,14 @@ async function createTeam() {
           v-if="!isCollapsed"
           class="flex items-center ps-2.5"
         >
-          <Logo class="h-9 w-7" />
-          <span
-            class="self-center ml-2 text-xl font-semibold whitespace-nowrap dark:text-white"
-          >
-            {{ t('global.appNameShort') }}
-          </span>
+          <Logo />
         </a>
-        <Logo
+        <a
           v-if="isCollapsed"
-          class="h-6 w-6 ml-1"
-        />
+          class="flex items-center ps-2.5"
+        >
+          <span class="text-lg font-bold text-orange-500">AI</span>
+        </a>
         <div
           class="flex flex-col gap-2 mb-2 mt-3"
           :class="{ 'pl-2 pr-2': !isCollapsed }"
@@ -640,6 +637,12 @@ async function createTeam() {
               </div>
             </template>
           </UDrawer>
+          <NuxtLink
+            :to="localePath(`/${activeOrgSlug}/dashboard`)"
+            class="sm:hidden ml-2"
+          >
+            <Logo />
+          </NuxtLink>
           <UButton
             :icon="isCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
             class="w-8 h-8 hidden sm:block"

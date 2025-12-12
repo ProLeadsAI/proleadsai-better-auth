@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-const { t } = useI18n()
 const localePath = useLocalePath()
 </script>
 
@@ -11,10 +10,7 @@ const localePath = useLocalePath()
         :to="localePath('/')"
         class="flex items-center gap-2"
       >
-        <span class="font-bold text-xl flex items-center">
-          <Logo class="w-6 h-6 mr-1" />
-          {{ t('global.appName') }}
-        </span>
+        <Logo />
       </NuxtLink>
 
       <slot name="center" />

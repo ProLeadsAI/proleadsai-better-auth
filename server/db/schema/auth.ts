@@ -82,7 +82,10 @@ export const organization = pgTable('organization', {
   googleMapsApiKey: text('google_maps_api_key'),
   timezone: text('timezone').default('America/New_York'),
   // Source of organization creation (e.g., 'wordpress', 'web', etc.)
-  source: text('source')
+  source: text('source'),
+  // Notification settings stored as JSON for flexibility
+  // Structure: { newLeads: { enabled: boolean, roles: ['owner', 'admin', 'member'] }, ... }
+  notificationSettings: text('notification_settings')
 })
 
 export const member = pgTable(

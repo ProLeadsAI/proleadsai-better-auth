@@ -10,6 +10,7 @@
 
 export { BaseEmail, EmailButton } from './BaseEmail'
 export { DeleteAccount } from './DeleteAccount'
+export { LeadSubmitted } from './LeadSubmitted'
 export { MagicLink } from './MagicLink'
 export { PaymentFailed } from './PaymentFailed'
 export { ResetPassword } from './ResetPassword'

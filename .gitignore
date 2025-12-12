@@ -23,8 +23,6 @@ logs
 .env.*
 !.env.example
 
-
-server/db/migrations
 tests/coverage
 .wrangler/
 wrangler.toml

@@ -1,7 +1,10 @@
 import { and, desc, eq } from 'drizzle-orm'
-import { addresses, leads, organization as organizationTable, submissions } from '~~/server/db/schema'
+import { addresses, leads, member, organization as organizationTable, submissions, subscription, user } from '~~/server/db/schema'
 import { validateApiKey } from '~~/server/utils/apiKeyAuth'
 import { useDB } from '~~/server/utils/db'
+import { resendInstance } from '~~/server/utils/drivers'
+import { renderLeadSubmitted } from '~~/server/utils/email'
+import { runtimeConfig } from '~~/server/utils/runtimeConfig'
 
 export default defineEventHandler(async (event) => {
   // Set CORS headers for external form submissions
@@ -45,9 +48,6 @@ export default defineEventHandler(async (event) => {
   if (!org) {
     throw createError({ statusCode: 404, message: 'Organization not found' })
   }
-
-  // Determine source - use body.source, or 'wordpress' if API key used, or 'web' as default
-  const source = body.source || (apiKeyAuth ? 'wordpress' : 'web')
 
   // Build metadata with API key info if applicable
   const metadata = {
@@ -127,7 +127,7 @@ export default defineEventHandler(async (event) => {
       addressCountry: body.address.addressCountry || null,
       latitude: body.address.latitude || null,
       longitude: body.address.longitude || null,
-      source,
+      source: 'submitted',
       roofAreaSqFt: body.address.roofAreaSqFt || null,
       pricePerSquare: body.address.pricePerSquare || null,
       estimate: body.address.estimate || null,
@@ -136,7 +136,95 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // TODO: Send email notifications to org members
+  // Send email notifications to org members (paid orgs only, notifications enabled)
+  try {
+    // 1) paid org gate
+    const subs = await db.query.subscription.findMany({
+      where: eq(subscription.referenceId, orgId)
+    })
+    const hasActiveSub = subs.some((s: any) => s.status === 'active' || s.status === 'trialing')
+    if (!hasActiveSub) {
+      // free orgs: no email notifications
+      throw new Error('Org is not paid')
+    }
+
+    // 2) notification settings gate
+    let notifyEnabled = false
+    let roleRecipients: string[] = ['owner', 'admin']
+    if ((org as any).notificationSettings) {
+      try {
+        const parsed = JSON.parse((org as any).notificationSettings)
+        notifyEnabled = Boolean(parsed?.newLeads?.enabled)
+        if (Array.isArray(parsed?.newLeads?.roles)) {
+          roleRecipients = parsed.newLeads.roles
+        }
+      } catch {
+        // ignore invalid JSON
+      }
+    }
+    if (!notifyEnabled) {
+      throw new Error('Lead notifications disabled')
+    }
+
+    if (!runtimeConfig.resendApiKey) {
+      throw new Error('Resend not configured')
+    }
+
+    // 3) find the submitted roof/address to include
+    const submittedAddress = await db.query.addresses.findFirst({
+      where: eq(addresses.submissionId, newSubmission.id),
+      orderBy: [desc(addresses.createdAt)]
+    })
+
+    const fullAddress = submittedAddress
+      ? `${submittedAddress.streetAddress}, ${submittedAddress.addressLocality}, ${submittedAddress.addressRegion} ${submittedAddress.postalCode}`
+      : null
+
+    const roofSizeSqFt = submittedAddress?.roofAreaSqFt ?? null
+    const roofPrice = submittedAddress?.estimate ?? null
+
+    // 4) recipient emails by role
+    const members = await db
+      .select({
+        role: member.role,
+        email: user.email,
+        name: user.name
+      })
+      .from(member)
+      .innerJoin(user, eq(member.userId, user.id))
+      .where(eq(member.organizationId, orgId))
+
+    const allowedRoles = new Set(roleRecipients)
+    const to = Array.from(new Set(
+      members
+        .filter(m => allowedRoles.has(m.role || ''))
+        .map(m => m.email)
+        .filter(Boolean)
+    ))
+
+    if (to.length === 0) {
+      throw new Error('No recipients')
+    }
+
+    const html = await renderLeadSubmitted({
+      teamName: org.name,
+      leadName: newSubmission.name,
+      leadEmail: newSubmission.email,
+      leadPhone: newSubmission.phone,
+      address: fullAddress,
+      roofSizeSqFt,
+      roofPrice
+    })
+
+    await resendInstance.emails.send({
+      from: `${runtimeConfig.public.appName} <${runtimeConfig.public.appNotifyEmail}>`,
+      to,
+      subject: `New lead submitted - ${org.name}`,
+      html
+    })
+  } catch {
+    // Do not fail the submission if email fails or is disabled
+  }
 
   // Generate a new toolSessionId for the next flow (like the old app did)
   const newToolSessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`

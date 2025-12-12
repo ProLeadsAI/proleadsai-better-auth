@@ -109,19 +109,17 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       </template>
 
       <div class="space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-simple-icons-google"
-            class="justify-center"
-            :loading="loading && loadingAction === 'google'"
-            :disabled="loading"
-            @click="onSocialLogin('google')"
-          >
-            Google
-          </UButton>
-        </div>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-simple-icons-google"
+          class="w-full justify-center"
+          :loading="loading && loadingAction === 'google'"
+          :disabled="loading"
+          @click="onSocialLogin('google')"
+        >
+          Google
+        </UButton>
 
         <USeparator :label="t('signUp.or')" />
 

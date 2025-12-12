@@ -3,6 +3,19 @@
 
 @theme {
   --font-sans: 'Public Sans', sans-serif;
+
+  /* Custom ProLeads orange color palette based on #f96302 */
+  --color-proleads-50: #fff7ed;
+  --color-proleads-100: #ffedd5;
+  --color-proleads-200: #fed7aa;
+  --color-proleads-300: #fdba74;
+  --color-proleads-400: #fb923c;
+  --color-proleads-500: #f96302;
+  --color-proleads-600: #ea580c;
+  --color-proleads-700: #c2410c;
+  --color-proleads-800: #9a3412;
+  --color-proleads-900: #7c2d12;
+  --color-proleads-950: #431407;
 }
 @layer base {
   /* Fix for mobile Safari viewport height */
