@@ -3,8 +3,8 @@
  * Queries database directly - NO HTTP calls, NO Better Auth API calls
  */
 
-import { and, eq } from 'drizzle-orm'
-import { member as memberTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
+import { and, eq, like } from 'drizzle-orm'
+import { apiKey as apiKeyTable, member as memberTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
 import { getAuthSession } from '~~/server/utils/auth'
 import { useDB } from '~~/server/utils/db'
 
@@ -74,6 +74,25 @@ export default defineEventHandler(async (event) => {
     // Fetch subscriptions for this organization
     const subscriptions = await db.query.subscription.findMany({
       where: eq(subscriptionTable.referenceId, activeOrgId)
+    })
+
+    // Detect integrations
+    const candidateKeys = await db.select().from(apiKeyTable).where(
+      and(
+        like(apiKeyTable.metadata, `%${activeOrgId}%`),
+        like(apiKeyTable.metadata, '%wordpress%')
+      )
+    )
+
+    const hasWordPressIntegration = candidateKeys.some((k: any) => {
+      if (!k.metadata)
+        return false
+      try {
+        const meta = typeof k.metadata === 'string' ? JSON.parse(k.metadata) : k.metadata
+        return meta?.source === 'wordpress' && meta?.organizationId === activeOrgId
+      } catch {
+        return false
+      }
     })
 
     // Calculate needsUpgrade Server-Side
@@ -146,7 +165,15 @@ export default defineEventHandler(async (event) => {
     console.log('[API] Full Data - Org:', activeOrgId, 'Subs:', subscriptions.length, 'NeedsUpgrade:', needsUpgrade, 'UserOwnsMultipleOrgs:', userOwnsMultipleOrgs)
 
     return {
-      organization: org,
+      organization: {
+        ...org,
+        integrations: {
+          wordpress: {
+            connected: hasWordPressIntegration,
+            url: org.domainName || null
+          }
+        }
+      },
       subscriptions: subscriptions || [],
       needsUpgrade,
       userOwnsMultipleOrgs,

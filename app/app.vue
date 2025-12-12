@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { useStorage } from '@vueuse/core'
 import { registerTheme } from 'echarts/core'
-// Credit: https://github.com/nuxt/ui/issues/978#issuecomment-3025809129
 import NuxtUITheme from './assets/echarts-theme.json'
 
 const { t } = useI18n()

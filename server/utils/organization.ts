@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { and, eq } from 'drizzle-orm'
-import { member as memberTable, organization as organizationTable } from '~~/server/db/schema'
+import { member as memberTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
 import { getAuthSession } from './auth'
 import { useDB } from './db'
 
@@ -54,4 +54,26 @@ export async function requireOrgMembership(event: H3Event, orgId: string) {
     membership,
     db
   }
+}
+
+/**
+ * Verify membership AND that the organization is on a paid plan.
+ * Free orgs are blocked from CRM resources (leads/contacts/submissions).
+ */
+export async function requirePaidOrgMembership(event: H3Event, orgId: string) {
+  const result = await requireOrgMembership(event, orgId)
+
+  const subs = await result.db.query.subscription.findMany({
+    where: eq(subscriptionTable.referenceId, orgId)
+  })
+
+  const hasActiveSub = subs.some((s: any) => s.status === 'active' || s.status === 'trialing')
+  if (!hasActiveSub) {
+    throw createError({
+      statusCode: 402,
+      message: 'Upgrade required'
+    })
+  }
+
+  return result
 }

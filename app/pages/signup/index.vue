@@ -56,7 +56,7 @@ const state = reactive<Partial<Schema>>({
 const loading = ref(false)
 const loadingAction = ref('')
 
-async function onSocialLogin(action: 'google' | 'github') {
+async function onSocialLogin(action: 'google') {
   loading.value = true
   loadingAction.value = action
   auth.signIn.social({
@@ -120,17 +120,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             @click="onSocialLogin('google')"
           >
             Google
-          </UButton>
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-simple-icons-github"
-            class="justify-center"
-            :loading="loading && loadingAction === 'github'"
-            :disabled="loading"
-            @click="onSocialLogin('github')"
-          >
-            Github
           </UButton>
         </div>
 

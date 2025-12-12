@@ -55,8 +55,7 @@ const hasPassword = computed(() => {
 
 // Available social providers
 const socialProviders = [
-  { id: 'google', name: 'Google', icon: 'i-simple-icons-google' },
-  { id: 'github', name: 'GitHub', icon: 'i-simple-icons-github' }
+  { id: 'google', name: 'Google', icon: 'i-simple-icons-google' }
 ]
 
 // Fetch connected accounts
@@ -236,7 +235,7 @@ async function linkAccount(providerId: string) {
   linkingAccount.value = providerId
   try {
     await client.linkSocial({
-      provider: providerId as 'google' | 'github',
+      provider: providerId as 'google',
       callbackURL: `/${route.params.slug}/profile?linked=${providerId}`
     })
   } catch (e: any) {

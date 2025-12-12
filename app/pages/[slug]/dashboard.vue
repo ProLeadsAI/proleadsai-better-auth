@@ -4,6 +4,22 @@ const router = useRouter()
 const route = useRoute()
 const activeOrg = useActiveOrganization()
 
+const wordpressIntegration = computed(() => {
+  const integrations: any = (activeOrg.value?.data as any)?.integrations
+  return integrations?.wordpress
+})
+
+const hasActiveSubscription = computed(() => {
+  const subs: any[] = (activeOrg.value?.data as any)?.subscriptions || []
+  if (!Array.isArray(subs))
+    return false
+  return subs.some(s => s?.status === 'active' || s?.status === 'trialing')
+})
+
+const crmLocked = computed(() => {
+  return !!wordpressIntegration.value?.connected && !hasActiveSubscription.value
+})
+
 definePageMeta({
   layout: 'dashboard'
 })
@@ -52,10 +68,10 @@ const statCards = computed(() => [
 
 <template>
   <div class="flex flex-col gap-6">
-    <UCard>
+    <UCard v-if="!crmLocked">
       <template #header>
         <h3 class="text-lg font-semibold">
-          Welcome back, {{ user?.name }}!
+          Welcome back{{ user?.name ? `, ${user.name}` : '' }}!
         </h3>
       </template>
       <p class="text-neutral-500">
@@ -64,7 +80,10 @@ const statCards = computed(() => [
     </UCard>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div
+      v-if="!crmLocked"
+      class="grid grid-cols-1 gap-4 md:grid-cols-3"
+    >
       <NuxtLink
         v-for="stat in statCards"
         :key="stat.label"
@@ -99,5 +118,58 @@ const statCards = computed(() => [
         </UCard>
       </NuxtLink>
     </div>
+
+    <UCard>
+      <template #header>
+        <h3 class="text-lg font-semibold">
+          Integrations
+        </h3>
+      </template>
+
+      <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 overflow-hidden">
+        <div class="flex items-center justify-between gap-4 px-4 py-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="h-9 w-9 rounded-md bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center flex-none">
+              <UIcon
+                name="i-simple-icons-wordpress"
+                class="h-5 w-5"
+              />
+            </div>
+            <div class="min-w-0">
+              <div class="font-medium leading-5">
+                WordPress
+              </div>
+              <div class="text-sm text-neutral-500 truncate">
+                <template v-if="wordpressIntegration?.connected">
+                  <template v-if="wordpressIntegration?.url">
+                    <a
+                      class="hover:underline"
+                      :href="wordpressIntegration.url"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {{ wordpressIntegration.url }}
+                    </a>
+                  </template>
+                  <template v-else>
+                    URL not set
+                  </template>
+                </template>
+                <template v-else>
+                  Not connected
+                </template>
+              </div>
+            </div>
+          </div>
+          <UBadge
+            :color="wordpressIntegration?.connected ? 'green' : 'gray'"
+            variant="subtle"
+            class="flex-none"
+          >
+            {{ wordpressIntegration?.connected ? 'Connected' : 'Not connected' }}
+          </UBadge>
+        </div>
+      </div>
+    </UCard>
   </div>
 </template>

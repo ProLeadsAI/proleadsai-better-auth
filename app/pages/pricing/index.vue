@@ -8,7 +8,6 @@ definePageMeta({
 const { t } = useI18n()
 const { loggedIn, subscription, payment } = useAuth()
 const localePath = useLocalePath()
-const runtimeConfig = useRuntimeConfig()
 const billingPeriod = ref('monthly')
 
 const plans = [
@@ -23,7 +22,7 @@ const plans = [
     ],
     cta: t('pricing.cta.free'),
     color: 'neutral' as const,
-    to: runtimeConfig.public.appRepo
+    to: localePath('/signup')
   },
   {
     name: t('pricing.pro.name'),
@@ -66,7 +65,7 @@ const plans = [
     ],
     cta: t('pricing.cta.enterprise'),
     color: 'neutral' as const,
-    to: `mailto:${runtimeConfig.public.appContactEmail}`
+    to: `mailto:${useRuntimeConfig().public.appContactEmail}`
   }
 ]
 </script>

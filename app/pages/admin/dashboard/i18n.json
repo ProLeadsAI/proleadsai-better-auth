@@ -15,51 +15,19 @@
       }
     }
   },
-  "zh-CN": {
+  "es": {
     "dashboard": {
       "stats": {
-        "activeUsers": "活跃用户",
-        "totalRevenue": "总收入",
-        "activeProjects": "活跃项目",
-        "customerSatisfaction": "客户满意度"
+        "activeUsers": "Usuarios activos",
+        "totalRevenue": "Ingresos totales",
+        "activeProjects": "Proyectos activos",
+        "customerSatisfaction": "Satisfacción del cliente"
       },
       "revenueChart": {
-        "title": "收入增长"
+        "title": "Crecimiento de ingresos"
       },
       "userDistribution": {
-        "title": "用户方案分布"
-      }
-    }
-  },
-  "ja": {
-    "dashboard": {
-      "stats": {
-        "activeUsers": "アクティブユーザー",
-        "totalRevenue": "総収入",
-        "activeProjects": "アクティブプロジェクト",
-        "customerSatisfaction": "顧客満足度"
-      },
-      "revenueChart": {
-        "title": "収益成長"
-      },
-      "userDistribution": {
-        "title": "プラン別ユーザー分布"
-      }
-    }
-  },
-  "fr": {
-    "dashboard": {
-      "stats": {
-        "activeUsers": "Utilisateurs Actifs",
-        "totalRevenue": "Revenu Total",
-        "activeProjects": "Projets Actifs",
-        "customerSatisfaction": "Satisfaction Client"
-      },
-      "revenueChart": {
-        "title": "Croissance des Revenus"
-      },
-      "userDistribution": {
-        "title": "Distribution des Utilisateurs par Plan"
+        "title": "Distribución de usuarios por plan"
       }
     }
   }

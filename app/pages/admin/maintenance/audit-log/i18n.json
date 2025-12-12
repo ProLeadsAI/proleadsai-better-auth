@@ -22,73 +22,27 @@
       "createdAt": "Created At"
     }
   },
-  "zh-CN": {
+  "es": {
     "auditLog": {
-      "title": "审计日志",
-      "category": "分类",
+      "title": "Registro de auditoría",
+      "category": "Categoría",
       "categories": {
-        "auth": "认证",
-        "email": "邮件",
-        "payment": "支付"
+        "auth": "Autenticación",
+        "email": "Correo",
+        "payment": "Pago"
       },
-      "action": "操作",
-      "targetType": "目标类型",
-      "targetId": "目标ID",
-      "ipAddress": "IP地址",
-      "userAgent": "用户代理",
+      "action": "Acción",
+      "targetType": "Tipo de objetivo",
+      "targetId": "ID del objetivo",
+      "ipAddress": "Dirección IP",
+      "userAgent": "Agente de usuario",
       "status": {
-        "success": "成功",
-        "failure": "失败",
-        "pending": "处理中"
+        "success": "Éxito",
+        "failure": "Error",
+        "pending": "Pendiente"
       },
-      "details": "详情",
-      "createdAt": "创建时间"
-    }
-  },
-  "ja": {
-    "auditLog": {
-      "title": "監査ログ",
-      "category": "カテゴリー",
-      "categories": {
-        "auth": "認証",
-        "email": "メール",
-        "payment": "支払い"
-      },
-      "action": "アクション",
-      "targetType": "対象タイプ",
-      "targetId": "対象ID",
-      "ipAddress": "IPアドレス",
-      "userAgent": "ユーザーエージェント",
-      "status": {
-        "success": "成功",
-        "failure": "失敗",
-        "pending": "保留中"
-      },
-      "details": "詳細",
-      "createdAt": "作成日時"
-    }
-  },
-  "fr": {
-    "auditLog": {
-      "title": "Journal d'audit",
-      "category": "Catégorie",
-      "categories": {
-        "auth": "Authentification",
-        "email": "E-mail",
-        "payment": "Paiement"
-      },
-      "action": "Action",
-      "targetType": "Type de cible",
-      "targetId": "ID de cible",
-      "ipAddress": "Adresse IP",
-      "userAgent": "Agent utilisateur",
-      "status": {
-        "success": "Succès",
-        "failure": "Échec",
-        "pending": "En attente"
-      },
-      "details": "Détails",
-      "createdAt": "Créé le"
+      "details": "Detalles",
+      "createdAt": "Creado el"
     }
   }
 }

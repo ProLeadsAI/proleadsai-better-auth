@@ -9,7 +9,6 @@ const localePath = useLocalePath()
 const navigation = [
   { label: t('global.nav.features'), to: localePath('/#features') },
   { label: t('global.nav.pricing'), to: localePath('/pricing') },
-  { label: t('global.nav.docs'), to: 'https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas', external: true },
   { label: t('global.nav.dashboard'), to: localePath('/dashboard') }
 ]
 </script>
@@ -26,21 +25,11 @@ const navigation = [
         :key="item.label"
       >
         <NuxtLink
-          v-if="!item.external"
           :to="item.to"
           class="text-sm font-medium text-neutral-700 hover:text-primary-500 dark:text-neutral-300 dark:hover:text-primary-400"
         >
           {{ item.label }}
         </NuxtLink>
-        <a
-          v-else
-          :href="item.to"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-sm font-medium text-neutral-700 hover:text-primary-500 dark:text-neutral-300 dark:hover:text-primary-400"
-        >
-          {{ item.label }}
-        </a>
       </template>
     </div>
 

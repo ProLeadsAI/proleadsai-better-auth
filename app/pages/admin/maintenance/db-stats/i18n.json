@@ -17,58 +17,22 @@
       "tempBytes": "Temporary Bytes"
     }
   },
-  "zh-CN": {
+  "es": {
     "dbStats": {
-      "performance": "性能统计",
-      "activeBackends": "活动后端",
-      "transactions": "事务",
-      "commits": "提交数",
-      "rollbacks": "回滚数",
-      "tuples": "元组",
-      "inserted": "插入",
-      "updated": "更新",
-      "deleted": "删除",
-      "cacheHitRatio": "缓存命中率",
-      "conflicts": "冲突数",
-      "deadlocks": "死锁数",
-      "tempFiles": "临时文件",
-      "tempBytes": "临时文件大小"
-    }
-  },
-  "ja": {
-    "dbStats": {
-      "performance": "パフォーマンス統計",
-      "activeBackends": "アクティブバックエンド",
-      "transactions": "トランザクション",
-      "commits": "コミット数",
-      "rollbacks": "ロールバック数",
-      "tuples": "タプル",
-      "inserted": "挿入",
-      "updated": "更新",
-      "deleted": "削除",
-      "cacheHitRatio": "キャッシュヒット率",
-      "conflicts": "競合数",
-      "deadlocks": "デッドロック数",
-      "tempFiles": "一時ファイル",
-      "tempBytes": "一時ファイルサイズ"
-    }
-  },
-  "fr": {
-    "dbStats": {
-      "performance": "Statistiques de Performance",
-      "activeBackends": "Backends Actifs",
-      "transactions": "Transactions",
-      "commits": "Validations",
-      "rollbacks": "Annulations",
-      "tuples": "Tuples",
-      "inserted": "Insérés",
-      "updated": "Mis à jour",
-      "deleted": "Supprimés",
-      "cacheHitRatio": "Taux de Cache",
-      "conflicts": "Conflits",
-      "deadlocks": "Verrous Mortels",
-      "tempFiles": "Fichiers Temporaires",
-      "tempBytes": "Taille Temporaire"
+      "performance": "Estadísticas de rendimiento",
+      "activeBackends": "Backends activos",
+      "transactions": "Transacciones",
+      "commits": "Confirmaciones",
+      "rollbacks": "Reversiones",
+      "tuples": "Tuplas",
+      "inserted": "Insertadas",
+      "updated": "Actualizadas",
+      "deleted": "Eliminadas",
+      "cacheHitRatio": "Tasa de aciertos de caché",
+      "conflicts": "Conflictos",
+      "deadlocks": "Interbloqueos",
+      "tempFiles": "Archivos temporales",
+      "tempBytes": "Bytes temporales"
     }
   }
 }

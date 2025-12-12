@@ -15,52 +15,20 @@
       "files": "Files"
     }
   },
-  "zh-CN": {
+  "es": {
     "menu": {
-      "navigation": "导航",
-      "search": "搜索",
-      "dashboard": "仪表板",
-      "users": "用户",
-      "organizations": "组织",
-      "subscriptions": "订阅管理",
-      "maintenance": "系统维护",
-      "dbStats": "数据库状态",
-      "home": "首页",
-      "auditLog": "审计日志",
-      "migration": "数据迁移",
-      "files": "文件管理"
-    }
-  },
-  "ja": {
-    "menu": {
-      "navigation": "ナビゲーション",
-      "search": "検索",
-      "dashboard": "ダッシュボード",
-      "users": "ユーザー",
-      "organizations": "組織",
-      "subscriptions": "サブスクリプション",
-      "maintenance": "メンテナンス",
-      "dbStats": "データベース状態",
-      "home": "ホーム",
-      "auditLog": "監査ログ",
-      "migration": "データ移行",
-      "files": "ファイル"
-    }
-  },
-  "fr": {
-    "menu": {
-      "navigation": "Navigation",
-      "search": "Rechercher",
-      "dashboard": "Tableau de bord",
-      "users": "Utilisateurs",
-      "organizations": "Organisations",
-      "subscriptions": "Abonnements",
-      "maintenance": "Maintenance",
-      "dbStats": "État de la base de données",
-      "home": "Accueil",
-      "auditLog": "Journal d'audit",
-      "migration": "Migration de Données",
-      "files": "Fichiers"
+      "navigation": "Navegación",
+      "search": "Buscar",
+      "dashboard": "Panel",
+      "users": "Usuarios",
+      "organizations": "Organizaciones",
+      "subscriptions": "Suscripciones",
+      "maintenance": "Mantenimiento",
+      "dbStats": "Estado de la base de datos",
+      "home": "Inicio",
+      "auditLog": "Registro de auditoría",
+      "migration": "Migración de datos",
+      "files": "Archivos"
     }
   }
 }

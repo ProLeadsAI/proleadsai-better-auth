@@ -29,103 +29,34 @@
       "backToPassword": "Back to password sign in"
     }
   },
-  "zh-CN": {
+  "es": {
     "signIn": {
-      "welcome": "欢迎使用 {name}",
-      "email": "邮箱",
-      "password": "密码",
-      "emailPlaceholder": "邮箱地址",
-      "passwordPlaceholder": "密码",
-      "rememberMe": "记住我",
-      "forgotPassword": "忘记密码？",
-      "signIn": "登录",
-      "noAccount": "还没有账号？",
-      "createAccount": "立即注册！",
-      "or": "或者",
-      "signInSuccess": "登录成功",
+      "welcome": "Bienvenido a {name}",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "emailPlaceholder": "Correo electrónico",
+      "passwordPlaceholder": "Contraseña",
+      "rememberMe": "Recordarme",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "signIn": "Iniciar sesión",
+      "noAccount": "¿No tienes una cuenta?",
+      "createAccount": "¡Crea una hoy!",
+      "or": "O",
+      "signInSuccess": "Inicio de sesión exitoso",
       "errors": {
-        "invalidEmail": "无效的邮箱地址",
-        "passwordLength": "密码长度至少为{min}个字符"
+        "invalidEmail": "Dirección de correo inválida",
+        "passwordLength": "La contraseña debe tener al menos {min} caracteres"
       },
-      "emailNotVerified": "邮箱未验证",
-      "emailNotVerifiedDesc": "请验证您的邮箱地址以继续。",
-      "resendEmail": "重新发送验证邮件",
-      "resendEmailSuccess": "验证邮件已发送",
-      "resendEmailError": "发送验证邮件失败",
-      "sendEmail": "发送验证邮件",
-      "sendEmailSuccess": "验证邮件已发送",
-      "sendEmailError": "发送验证邮件失败",
-      "useMagicLink": "使用魔法链接登录",
-      "sendMagicLink": "发送魔法链接",
-      "magicLinkSent": "魔法链接已发送！",
-      "magicLinkSentDesc": "请检查您的邮箱获取登录链接。您可以关闭此页面。",
-      "backToPassword": "返回密码登录"
-    }
-  },
-  "ja": {
-    "signIn": {
-      "welcome": "{name}へようこそ",
-      "email": "メールアドレス",
-      "password": "パスワード",
-      "emailPlaceholder": "メールアドレス",
-      "passwordPlaceholder": "パスワード",
-      "rememberMe": "ログイン状態を保持",
-      "forgotPassword": "パスワードをお忘れですか？",
-      "signIn": "ログイン",
-      "noAccount": "アカウントをお持ちでない方",
-      "createAccount": "新規登録！",
-      "or": "または",
-      "signInSuccess": "ログインに成功しました",
-      "errors": {
-        "invalidEmail": "無効なメールアドレス",
-        "passwordLength": "パスワードは{min}文字以上である必要があります"
-      },
-      "emailNotVerified": "メールアドレス未確認",
-      "emailNotVerifiedDesc": "続行するにはメールアドレスを確認してください。",
-      "resendEmail": "確認メールを再送信",
-      "resendEmailSuccess": "確認メールを送信しました",
-      "resendEmailError": "確認メールの送信に失敗しました",
-      "sendEmail": "認証メールを送信",
-      "sendEmailSuccess": "認証メールを送信しました",
-      "sendEmailError": "認証メールの送信に失敗しました",
-      "useMagicLink": "マジックリンクでログイン",
-      "sendMagicLink": "マジックリンクを送信",
-      "magicLinkSent": "マジックリンクを送信しました！",
-      "magicLinkSentDesc": "メールでログインリンクをご確認ください。このページは閉じても構いません。",
-      "backToPassword": "パスワードログインに戻る"
-    }
-  },
-  "fr": {
-    "signIn": {
-      "welcome": "Bienvenue sur {name}",
-      "email": "E-mail",
-      "password": "Mot de passe",
-      "emailPlaceholder": "Adresse e-mail",
-      "passwordPlaceholder": "Mot de passe",
-      "rememberMe": "Se souvenir de moi",
-      "forgotPassword": "Mot de passe oublié ?",
-      "signIn": "Se connecter",
-      "noAccount": "Vous n'avez pas de compte ?",
-      "createAccount": "Créez-en un !",
-      "or": "Ou",
-      "signInSuccess": "Connexion réussie",
-      "errors": {
-        "invalidEmail": "Adresse e-mail invalide",
-        "passwordLength": "Le mot de passe doit contenir au moins {min} caractères"
-      },
-      "emailNotVerified": "Email non vérifié",
-      "emailNotVerifiedDesc": "Veuillez vérifier votre adresse e-mail pour continuer.",
-      "resendEmail": "Renvoyer l'e-mail de vérification",
-      "resendEmailSuccess": "L'e-mail de vérification a été envoyé",
-      "resendEmailError": "Échec de l'envoi de l'e-mail de vérification",
-      "sendEmail": "Envoyer l'e-mail de vérification",
-      "sendEmailSuccess": "L'e-mail de vérification a été envoyé",
-      "sendEmailError": "Échec de l'envoi de l'e-mail de vérification",
-      "useMagicLink": "Se connecter avec un lien magique",
-      "sendMagicLink": "Envoyer le lien magique",
-      "magicLinkSent": "Lien magique envoyé !",
-      "magicLinkSentDesc": "Vérifiez votre e-mail pour le lien de connexion. Vous pouvez fermer cette page.",
-      "backToPassword": "Retour à la connexion par mot de passe"
+      "emailNotVerified": "Correo no verificado",
+      "emailNotVerifiedDesc": "Verifica tu correo electrónico para continuar.",
+      "sendEmail": "Enviar correo de verificación",
+      "sendEmailSuccess": "Se envió el correo de verificación",
+      "sendEmailError": "No se pudo enviar el correo de verificación",
+      "useMagicLink": "Iniciar sesión con enlace mágico",
+      "sendMagicLink": "Enviar enlace mágico",
+      "magicLinkSent": "¡Enlace mágico enviado!",
+      "magicLinkSentDesc": "Revisa tu correo para el enlace de inicio de sesión. Puedes cerrar esta página.",
+      "backToPassword": "Volver a iniciar sesión con contraseña"
     }
   }
 }

@@ -3,12 +3,12 @@
 <script setup lang="ts">
 definePageMeta({
   auth: false,
-  layout: false
+  layout: false,
+  middleware: 'home'
 })
 
 const { t } = useI18n()
 const localePath = useLocalePath()
-const runtimeConfig = useRuntimeConfig()
 const { user } = useAuth()
 
 const title = `${t('global.appName')}: ${t('home.slogan')}`
@@ -144,16 +144,6 @@ const activeScreenshot = ref('0')
                 size="lg"
               >
                 Dashboard
-              </UButton>
-              <UButton
-                :to="runtimeConfig.public.appRepo"
-                target="_blank"
-                color="neutral"
-                variant="outline"
-                size="lg"
-                icon="i-simple-icons-github"
-              >
-                {{ t('home.viewOnGithub') }}
               </UButton>
             </div>
           </div>

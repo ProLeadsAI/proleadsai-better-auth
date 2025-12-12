@@ -32,10 +32,8 @@ export default defineNuxtConfig({
     vueI18n: '~/i18n/i18n.config.ts',
     baseUrl: process.env.NUXT_APP_URL,
     locales: [
-      { code: 'en', language: 'en-US', name: 'English' },
-      { code: 'zh-CN', language: 'zh-CN', name: '简体中文' },
-      { code: 'ja', language: 'ja-JP', name: '日本語' },
-      { code: 'fr', language: 'fr-FR', name: 'Français' }
+      { code: 'en', language: 'en', name: 'English' },
+      { code: 'es', language: 'es', name: 'Español' }
     ],
     defaultLocale: 'en',
     bundle: {
@@ -107,7 +105,7 @@ export default defineNuxtConfig({
       viewport: 'width=device-width, initial-scale=1, maximum-scale=5.0, minimum-scale=1.0',
       link: [
         { rel: 'icon', type: 'image/png', href: '/favicons/favicon-96x96.png', sizes: '96x96' },
-        { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
+        { rel: 'icon', type: 'image/png', href: '/logo.png' },
         { rel: 'shortcut icon', href: '/favicon.ico' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/favicons/apple-touch-icon.png' },
         { rel: 'manifest', href: '/favicons/site.webmanifest' }

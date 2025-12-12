@@ -64,7 +64,7 @@ onMounted(() => {
   }
 })
 
-async function onSocialLogin(action: 'google' | 'github') {
+async function onSocialLogin(action: 'google') {
   loading.value = true
   loadingAction.value = action
   auth.signIn.social({ provider: action, callbackURL: redirectTo.value })
@@ -167,17 +167,6 @@ async function onMagicLinkSubmit() {
             @click="onSocialLogin('google')"
           >
             Google
-          </UButton>
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-simple-icons-github"
-            class="justify-center"
-            :loading="loading && loadingAction === 'github'"
-            :disabled="loading"
-            @click="onSocialLogin('github')"
-          >
-            Github
           </UButton>
         </div>
 

@@ -1,7 +1,7 @@
 import type { LocalePathFunction } from '#i18n'
 import { hasPermission } from '~~/shared/utils/permissions'
 
-export const getMenus = (t: TranFunction, localePath: LocalePathFunction, appRepo: string): NavigationMenuItem[][] => {
+export const getMenus = (t: TranFunction, localePath: LocalePathFunction): NavigationMenuItem[][] => {
   return [
     [
       {
@@ -56,18 +56,12 @@ export const getMenus = (t: TranFunction, localePath: LocalePathFunction, appRep
         label: t('menu.home'),
         icon: 'i-lucide-home',
         to: localePath('/')
-      },
-      {
-        label: 'GitHub',
-        icon: 'i-lucide-github',
-        to: appRepo,
-        target: '_blank'
       }
     ]
   ]
 }
 
-export const getUserMenus = (t: TranFunction, localePath: LocalePathFunction, appRepo: string, slug: string, userRole?: 'owner' | 'admin' | 'member', needsUpgrade = false): NavigationMenuItem[][] => {
+export const getUserMenus = (t: TranFunction, localePath: LocalePathFunction, slug: string, userRole?: 'owner' | 'admin' | 'member', needsUpgrade = false, crmLocked = false): NavigationMenuItem[][] => {
   const items: NavigationMenuItem[] = []
 
   if (!needsUpgrade) {
@@ -76,21 +70,23 @@ export const getUserMenus = (t: TranFunction, localePath: LocalePathFunction, ap
       icon: 'i-lucide-layout-dashboard',
       to: localePath(`/${slug}/dashboard`)
     })
-    items.push({
-      label: 'Leads',
-      icon: 'i-lucide-funnel',
-      to: localePath(`/${slug}/leads`)
-    })
-    items.push({
-      label: 'Contacts',
-      icon: 'i-lucide-contact',
-      to: localePath(`/${slug}/contacts`)
-    })
-    items.push({
-      label: 'Submissions',
-      icon: 'i-lucide-inbox',
-      to: localePath(`/${slug}/submissions`)
-    })
+    if (!crmLocked) {
+      items.push({
+        label: 'Leads',
+        icon: 'i-lucide-funnel',
+        to: localePath(`/${slug}/leads`)
+      })
+      items.push({
+        label: 'Contacts',
+        icon: 'i-lucide-contact',
+        to: localePath(`/${slug}/contacts`)
+      })
+      items.push({
+        label: 'Submissions',
+        icon: 'i-lucide-inbox',
+        to: localePath(`/${slug}/submissions`)
+      })
+    }
     items.push({
       label: 'Members',
       icon: 'i-lucide-users',

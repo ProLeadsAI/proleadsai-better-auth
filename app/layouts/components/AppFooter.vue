@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 const { t } = useI18n()
-const runtimeConfig = useRuntimeConfig()
 </script>
 
 <template>
@@ -24,15 +23,6 @@ const runtimeConfig = useRuntimeConfig()
           <ClientOnly>
             <ColorModeToggler />
           </ClientOnly>
-          <UButton
-            icon="i-simple-icons-github"
-            variant="ghost"
-            color="neutral"
-            :href="runtimeConfig.public.appRepo"
-            target="_blank"
-            aria-label="Github"
-            rel="noopener noreferrer"
-          />
         </div>
       </div>
     </div>

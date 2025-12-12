@@ -5,11 +5,7 @@ const { user, session, client } = useAuth()
 const toast = useToast()
 const { t } = useI18n()
 const localePath = useLocalePath()
-const { data: accounts } = await useAsyncData('/accounts', () => client.listAccounts())
-
-function hasProvider(provider: string) {
-  return accounts.value?.data?.some(account => account.provider === provider)
-}
+const { data: _accounts } = await useAsyncData('/accounts', () => client.listAccounts())
 
 const error = useRoute().query?.error
 onMounted(() => {
@@ -110,24 +106,6 @@ onMounted(() => {
         <h2 class="text-xl font-bold mb-4">
           {{ t('profile.connectedAccounts') }}
         </h2>
-        <div class="flex gap-2">
-          <UButton
-            v-if="hasProvider('github')"
-            color="neutral"
-            icon="i-simple-icons-github"
-            trailing-icon="i-heroicons-check"
-          >
-            {{ t('profile.linkedGithub') }}
-          </UButton>
-          <UButton
-            v-else
-            color="neutral"
-            icon="i-simple-icons-github"
-            @click="client.linkSocial({ provider: 'github' })"
-          >
-            {{ t('profile.linkGithub') }}
-          </UButton>
-        </div>
       </div>
     </div>
   </UContainer>

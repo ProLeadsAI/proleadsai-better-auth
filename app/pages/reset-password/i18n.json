@@ -17,55 +17,22 @@
       "backToSignIn": "Back to Sign In"
     }
   },
-  "zh-CN": {
+  "es": {
     "resetPassword": {
-      "title": "重置您的密码",
-      "description": "在下面输入您的新密码。",
-      "password": "新密码",
-      "passwordPlaceholder": "输入您的新密码",
-      "confirmPassword": "确认密码",
-      "confirmPasswordPlaceholder": "重新输入您的新密码",
-      "submit": "重置密码",
-      "success": "您的密码已成功重置。",
+      "title": "Restablece tu contraseña",
+      "description": "Ingresa tu nueva contraseña a continuación.",
+      "password": "Nueva contraseña",
+      "passwordPlaceholder": "Ingresa tu nueva contraseña",
+      "confirmPassword": "Confirmar contraseña",
+      "confirmPasswordPlaceholder": "Vuelve a ingresar tu nueva contraseña",
+      "submit": "Restablecer contraseña",
+      "success": "Tu contraseña se restableció correctamente.",
       "errors": {
-        "minLength": "密码必须至少为 {min} 个字符。",
-        "passwordMismatch": "两次输入的密码不一致。"
+        "otpLength": "El código de verificación debe tener 6 dígitos.",
+        "minLength": "La contraseña debe tener al menos {min} caracteres.",
+        "passwordMismatch": "Las contraseñas no coinciden."
       },
-      "backToSignIn": "返回登录"
-    }
-  },
-  "ja": {
-    "resetPassword": {
-      "title": "パスワードをリセット",
-      "description": "新しいパスワードを以下に入力してください。",
-      "password": "新しいパスワード",
-      "passwordPlaceholder": "新しいパスワードを入力",
-      "confirmPassword": "パスワードの確認",
-      "confirmPasswordPlaceholder": "新しいパスワードを再入力してください",
-      "submit": "パスワードをリセット",
-      "success": "パスワードが正常にリセットされました。",
-      "errors": {
-        "minLength": "パスワードは最低 {min} 文字である必要があります。",
-        "passwordMismatch": "パスワードが一致しません。"
-      },
-      "backToSignIn": "サインインに戻る"
-    }
-  },
-  "fr": {
-    "resetPassword": {
-      "title": "Réinitialiser votre mot de passe",
-      "description": "Entrez votre nouveau mot de passe ci-dessous.",
-      "password": "Nouveau mot de passe",
-      "passwordPlaceholder": "Entrez votre nouveau mot de passe",
-      "confirmPassword": "Confirmer le mot de passe",
-      "confirmPasswordPlaceholder": "Saisissez à nouveau votre nouveau mot de passe",
-      "submit": "Réinitialiser le mot de passe",
-      "success": "Votre mot de passe a été réinitialisé avec succès.",
-      "errors": {
-        "minLength": "Le mot de passe doit comporter au moins {min} caractères.",
-        "passwordMismatch": "Les mots de passe ne correspondent pas."
-      },
-      "backToSignIn": "Retour à la connexion"
+      "backToSignIn": "Volver a iniciar sesión"
     }
   }
 }

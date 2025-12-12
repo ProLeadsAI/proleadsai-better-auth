@@ -1,8 +1,8 @@
 {
   "en": {
     "global": {
-      "appName": "House of BetterAuth",
-      "appNameShort": "HoBA",
+      "appName": "ProLeadsAI",
+      "appNameShort": "ProLeadsAI",
       "nav": {
         "admin": "Admin",
         "features": "Features",
@@ -29,90 +29,33 @@
       }
     }
   },
-  "zh-CN": {
+  "es": {
     "global": {
-      "appName": "House of BetterAuth",
-      "appNameShort": "HoBA",
+      "appName": "ProLeadsAI",
+      "appNameShort": "ProLeadsAI",
       "nav": {
-        "admin": "管理后台",
-        "features": "功能特性",
-        "pricing": "定价方案",
-        "docs": "文档"
+        "admin": "Admin",
+        "features": "Funciones",
+        "pricing": "Precios",
+        "docs": "Documentación",
+        "dashboard": "Panel"
       },
       "auth": {
-        "signIn": "登录",
-        "signOut": "退出",
-        "profile": "个人资料"
+        "signIn": "Iniciar sesión",
+        "signOut": "Cerrar sesión",
+        "profile": "Perfil"
       },
       "page": {
-        "actions": "操作",
-        "create": "创建",
-        "edit": "编辑",
-        "save": "保存",
-        "delete": "删除",
-        "cancel": "取消",
-        "name": "名称",
-        "status": "状态",
-        "createdAt": "创建时间",
-        "all": "全部"
-      }
-    }
-  },
-  "ja": {
-    "global": {
-      "appName": "House of BetterAuth",
-      "appNameShort": "HoBA",
-      "nav": {
-        "admin": "管理画面",
-        "features": "機能",
-        "pricing": "料金",
-        "docs": "ドキュメント"
-      },
-      "auth": {
-        "signIn": "ログイン",
-        "signOut": "ログアウト",
-        "profile": "プロフィール"
-      },
-      "page": {
-        "actions": "アクション",
-        "create": "作成",
-        "edit": "編集",
-        "save": "保存",
-        "delete": "削除",
-        "cancel": "キャンセル",
-        "name": "名前",
-        "status": "状態",
-        "createdAt": "作成日時",
-        "all": "すべて"
-      }
-    }
-  },
-  "fr": {
-    "global": {
-      "appName": "House of BetterAuth",
-      "appNameShort": "HoBA",
-      "nav": {
-        "admin": "Administration",
-        "features": "Fonctionnalités",
-        "pricing": "Tarification",
-        "docs": "Documentation"
-      },
-      "auth": {
-        "signIn": "Connexion",
-        "signOut": "Déconnexion",
-        "profile": "Profil"
-      },
-      "page": {
-        "actions": "Actions",
-        "create": "Créer",
-        "edit": "Modifier",
-        "save": "Enregistrer",
-        "delete": "Supprimer",
-        "cancel": "Annuler",
-        "name": "Nom",
-        "status": "Statut",
-        "createdAt": "Créé le",
-        "all": "Tout"
+        "actions": "Acciones",
+        "create": "Crear",
+        "edit": "Editar",
+        "save": "Guardar",
+        "delete": "Eliminar",
+        "cancel": "Cancelar",
+        "name": "Nombre",
+        "status": "Estado",
+        "createdAt": "Creado el",
+        "all": "Todo"
       }
     }
   }

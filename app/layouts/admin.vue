@@ -11,7 +11,6 @@ const route = useRoute()
 const { t } = useI18n()
 const localePath = useLocalePath()
 const isCollapsed = ref(false)
-const runtimeConfig = useRuntimeConfig()
 
 defineShortcuts({
   'g-1': () => router.push(localePath('/admin/dashboard')),
@@ -20,7 +19,7 @@ defineShortcuts({
 const pathNameItemMap: StringDict<NavigationMenuItem> = {}
 const pathNameParentMap: StringDict<NavigationMenuItem | undefined> = {}
 
-const menus = getMenus(t, localePath, runtimeConfig.public.appRepo)
+const menus = getMenus(t, localePath)
 const menuIterator = (menus: NavigationMenuItem[], parent?: NavigationMenuItem) => {
   for (const menu of menus) {
     const to = `${menu.to}`

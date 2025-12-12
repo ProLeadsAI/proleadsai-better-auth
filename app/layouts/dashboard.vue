@@ -15,7 +15,22 @@ const route = useRoute()
 const { t } = useI18n()
 const localePath = useLocalePath()
 const isCollapsed = ref(false)
-const runtimeConfig = useRuntimeConfig()
+
+const wordpressIntegration = computed(() => {
+  const integrations: any = (activeOrg.value?.data as any)?.integrations
+  return integrations?.wordpress
+})
+
+const hasActiveSubscription = computed(() => {
+  const subs: any[] = (activeOrg.value?.data as any)?.subscriptions || []
+  if (!Array.isArray(subs))
+    return false
+  return subs.some(s => s?.status === 'active' || s?.status === 'trialing')
+})
+
+const crmLocked = computed(() => {
+  return !!wordpressIntegration.value?.connected && !hasActiveSubscription.value
+})
 
 // Fetch organization data with SSR to ensure members data is available for canManageTeam
 // SSR-only to prevent flicker on page load
@@ -335,7 +350,7 @@ const pathNameItemMap: StringDict<NavigationMenuItem> = {}
 const pathNameParentMap: StringDict<NavigationMenuItem | undefined> = {}
 
 // Pass user role to menu instead of boolean flags
-const menus = computed(() => getUserMenus(t, localePath, runtimeConfig.public.appRepo, activeOrgSlug.value, currentUserRole.value, needsUpgrade.value))
+const menus = computed(() => getUserMenus(t, localePath, activeOrgSlug.value, currentUserRole.value, needsUpgrade.value, crmLocked.value))
 
 const menuIterator = (menus: NavigationMenuItem[], parent?: NavigationMenuItem) => {
   for (const menu of menus) {

@@ -1,5 +1,5 @@
 import { addresses, leads } from '~~/server/db/schema'
-import { requireOrgMembership } from '~~/server/utils/organization'
+import { requirePaidOrgMembership } from '~~/server/utils/organization'
 
 export default defineEventHandler(async (event) => {
   const orgId = getRouterParam(event, 'orgId')
@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Organization ID required' })
   }
 
-  const { db, user } = await requireOrgMembership(event, orgId)
+  const { db, user } = await requirePaidOrgMembership(event, orgId)
   const body = await readBody(event)
 
   // Validate: at least name, email, or phone required
