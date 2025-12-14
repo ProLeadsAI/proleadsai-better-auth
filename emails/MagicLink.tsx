@@ -23,26 +23,15 @@ const link = {
   color: '#10b981'
 }
 
-const codeText = {
-  fontSize: '24px',
-  fontWeight: 'bold' as const,
-  letterSpacing: '4px',
-  color: '#10b981',
-  textAlign: 'center' as const,
-  margin: '16px 0'
-}
-
 interface MagicLinkProps {
   name: string
   url: string
-  token?: string
   appName?: string
 }
 
 export function MagicLink({
   name,
   url,
-  token,
   appName
 }: MagicLinkProps) {
   return (
@@ -64,11 +53,6 @@ export function MagicLink({
       <Section style={buttonContainer}>
         <EmailButton href={url}>Sign In</EmailButton>
       </Section>
-      {token && (
-        <Text style={codeText}>
-          {token}
-        </Text>
-      )}
       <Text style={linkText}>
         Or copy this link:
         {' '}
