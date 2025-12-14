@@ -103,6 +103,7 @@ export default defineEventHandler(async (event) => {
       slug: org.slug,
       email,
       googleMapsApiKey: org.googleMapsApiKey,
+      googleSolarApiKey: org.googleSolarApiKey,
       pricePerSq: org.pricePerSq,
       timezone: org.timezone,
       domainName: org.domainName,
@@ -148,6 +149,10 @@ export default defineEventHandler(async (event) => {
       updates.googleMapsApiKey = body.googleMapsApiKey || null
     }
 
+    if (body.googleSolarApiKey !== undefined) {
+      updates.googleSolarApiKey = body.googleSolarApiKey || null
+    }
+
     if (body.pricePerSq !== undefined) {
       const parsed = typeof body.pricePerSq === 'number' ? body.pricePerSq : Number.parseInt(body.pricePerSq, 10)
       updates.pricePerSq = Number.isNaN(parsed) ? 750 : parsed
@@ -176,6 +181,7 @@ export default defineEventHandler(async (event) => {
       name: updated.name,
       slug: updated.slug,
       googleMapsApiKey: updated.googleMapsApiKey,
+      googleSolarApiKey: updated.googleSolarApiKey,
       pricePerSq: updated.pricePerSq,
       timezone: updated.timezone,
       domainName: updated.domainName

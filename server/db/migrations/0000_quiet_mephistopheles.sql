@@ -83,6 +83,7 @@ CREATE TABLE "organization" (
 	"price_per_sq" integer DEFAULT 350,
 	"domain_name" text,
 	"google_maps_api_key" text,
+	"google_solar_api_key" text,
 	"timezone" text DEFAULT 'America/New_York',
 	"source" text,
 	"notification_settings" text,

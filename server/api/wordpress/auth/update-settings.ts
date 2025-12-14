@@ -32,10 +32,11 @@ export default defineEventHandler(async (event) => {
   const userId = body.userId
   const businessName = body.businessName
   const googleMapsApiKey = body.googleMapsApiKey
+  const googleSolarApiKey = body.googleSolarApiKey
   const pricePerSq = body.pricePerSq
   const timezone = body.timezone
 
-  console.log('[WordPress] update-settings received:', { userId, businessName, googleMapsApiKey: googleMapsApiKey ? '***' : undefined, pricePerSq, timezone })
+  console.log('[WordPress] update-settings received:', { userId, businessName, googleMapsApiKey: googleMapsApiKey ? '***' : undefined, googleSolarApiKey: googleSolarApiKey ? '***' : undefined, pricePerSq, timezone })
 
   const db = getDB()
 
@@ -89,6 +90,10 @@ export default defineEventHandler(async (event) => {
 
   if (googleMapsApiKey !== undefined) {
     updates.googleMapsApiKey = googleMapsApiKey
+  }
+
+  if (googleSolarApiKey !== undefined) {
+    updates.googleSolarApiKey = googleSolarApiKey
   }
 
   if (pricePerSq !== undefined) {

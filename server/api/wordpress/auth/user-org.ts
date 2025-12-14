@@ -68,6 +68,7 @@ export default defineEventHandler(async (event) => {
       name: wpOrg.name,
       slug: wpOrg.slug,
       googleMapsApiKey: wpOrg.googleMapsApiKey,
+      googleSolarApiKey: wpOrg.googleSolarApiKey,
       pricePerSq: wpOrg.pricePerSq,
       timezone: wpOrg.timezone
     },

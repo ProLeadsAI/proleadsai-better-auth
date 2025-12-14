@@ -32,11 +32,15 @@ export default defineEventHandler(async (event) => {
 
   const db = await useDB(event)
 
-  const lat = query.lat ? Number(query.lat) : null
-  const lng = query.lng ? Number(query.lng) : null
+  const lat = query.lat ? Number.parseFloat(query.lat as string) : null
+  const lng = query.lng ? Number.parseFloat(query.lng as string) : null
   const address = query.address as string | undefined
-  const sessionId = (query.sessionId as string) || `session_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-  // toolSessionId groups searches in a flow - use provided or generate new
+  const streetAddress = query.streetAddress as string | undefined
+  const addressLocality = query.addressLocality as string | undefined
+  const addressRegion = query.addressRegion as string | undefined
+  const postalCode = query.postalCode as string | undefined
+  const addressCountry = query.addressCountry as string | undefined
+  const sessionId = (query.sessionId as string) || `roof_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
   const toolSessionId = (query.toolSessionId as string) || `tool_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 
   if (!address && (lat === null || lng === null)) {
@@ -55,16 +59,26 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Organization not found' })
   }
 
-  // Use org's API key for WordPress sources, fall back to server key for other sources
+  // Use org's API keys for WordPress sources, fall back to server key for other sources
   const config = useRuntimeConfig()
-  const apiKey = org.googleMapsApiKey || config.googleMapsApiKey
+  const mapsApiKey = org.googleMapsApiKey || config.googleMapsApiKey
+  const solarApiKey = org.googleSolarApiKey || config.googleMapsApiKey
 
-  if (!apiKey) {
+  if (!mapsApiKey) {
     throw createError({
       statusCode: 500,
       message: org.source === 'wordpress'
         ? 'Google Maps API key not configured for this organization. Please add your API key in WordPress settings.'
         : 'Google Maps API key not configured'
+    })
+  }
+
+  if (!solarApiKey) {
+    throw createError({
+      statusCode: 500,
+      message: org.source === 'wordpress'
+        ? 'Google Solar API key not configured for this organization. Please add your API key in WordPress settings.'
+        : 'Google Solar API key not configured'
     })
   }
 
@@ -83,33 +97,55 @@ export default defineEventHandler(async (event) => {
       addressCountry: ''
     }
 
-    // Geocode if needed
+    // Use address components from frontend if provided, otherwise geocode
     if (lat !== null && lng !== null) {
       coordinates = { lat, lng }
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`
-      const geocodeRes = await fetch(geocodeUrl)
-      const geocodeJson = await geocodeRes.json()
-      if (geocodeJson.status === 'OK') {
-        formattedAddress = geocodeJson.results[0]?.formatted_address || formattedAddress
-        const components = geocodeJson.results[0]?.address_components || []
-        decodedAddress = decodeAddressFromGeocode(components)
+
+      // If frontend sent address components, use them directly (no geocoding needed)
+      if (streetAddress || addressLocality || addressRegion) {
+        decodedAddress = {
+          streetAddress: streetAddress || '',
+          streetAddress2: '',
+          postOfficeBoxNumber: '',
+          addressLocality: addressLocality || '',
+          addressRegion: addressRegion || '',
+          postalCode: postalCode || '',
+          addressCountry: addressCountry || ''
+        }
+        formattedAddress = [streetAddress, addressLocality, addressRegion, postalCode].filter(Boolean).join(', ')
+        console.log('[roof-estimate] Using address from frontend:', decodedAddress)
+      } else {
+        // Fallback to reverse geocoding if no address components provided
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${solarApiKey}`
+        const geocodeRes = await fetch(geocodeUrl)
+        const geocodeJson = await geocodeRes.json()
+        console.log('[roof-estimate] Geocode response status:', geocodeJson.status, geocodeJson.error_message || '')
+        if (geocodeJson.status === 'OK') {
+          formattedAddress = geocodeJson.results[0]?.formatted_address || formattedAddress
+          const components = geocodeJson.results[0]?.address_components || []
+          decodedAddress = decodeAddressFromGeocode(components)
+          console.log('[roof-estimate] Decoded address:', decodedAddress)
+        }
       }
     } else {
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address!)}&key=${apiKey}`
+      // Address-based lookup (no lat/lng) - must geocode
+      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address!)}&key=${solarApiKey}`
       const geocodeRes = await fetch(geocodeUrl)
       const geocodeJson = await geocodeRes.json()
+      console.log('[roof-estimate] Geocode (address) response status:', geocodeJson.status, geocodeJson.error_message || '')
       if (geocodeJson.status === 'OK') {
         coordinates = geocodeJson.results[0].geometry.location
         formattedAddress = geocodeJson.results[0]?.formatted_address || formattedAddress
         const components = geocodeJson.results[0]?.address_components || []
         decodedAddress = decodeAddressFromGeocode(components)
+        console.log('[roof-estimate] Decoded address:', decodedAddress)
       } else {
         throw createError({ statusCode: 400, message: 'Failed to geocode address' })
       }
     }
 
     // Get roof data from Solar API
-    const solarData = await getRoofDataFromSolar(coordinates!, apiKey)
+    const solarData = await getRoofDataFromSolar(coordinates!, solarApiKey)
     if (!solarData?.solarPotential?.roofSegmentStats) {
       throw createError({ statusCode: 404, message: 'Could not retrieve roof data' })
     }

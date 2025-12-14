@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
     pricePerSq: org.pricePerSq ?? 350,
     domainName: org.domainName ?? '',
     googleMapsApiKey: org.googleMapsApiKey ?? '',
+    googleSolarApiKey: org.googleSolarApiKey ?? '',
     timezone: org.timezone ?? 'America/New_York'
   }
 })

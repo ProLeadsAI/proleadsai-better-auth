@@ -29,6 +29,9 @@ export default defineEventHandler(async (event) => {
   if (body.googleMapsApiKey !== undefined) {
     updateData.googleMapsApiKey = body.googleMapsApiKey || null
   }
+  if (body.googleSolarApiKey !== undefined) {
+    updateData.googleSolarApiKey = body.googleSolarApiKey || null
+  }
   if (body.timezone !== undefined) {
     updateData.timezone = body.timezone || null
   }
@@ -46,6 +49,7 @@ export default defineEventHandler(async (event) => {
     pricePerSq: updated.pricePerSq,
     domainName: updated.domainName,
     googleMapsApiKey: updated.googleMapsApiKey,
+    googleSolarApiKey: updated.googleSolarApiKey,
     timezone: updated.timezone
   }
 })
