@@ -76,38 +76,6 @@ export const PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
       removeBranding: true,
       apiAccess: false
     }
-  },
-  business: {
-    key: 'business',
-    name: 'Pro+',
-    order: 2,
-    monthly: {
-      id: 'business-monthly-v1',
-      priceId: 'price_1ScBQXL7TP83v94rUCUJhtJT',
-      price: 79.99,
-      seatPrice: 15.00
-    },
-    yearly: {
-      id: 'business-yearly-v1',
-      priceId: 'price_1ScBRML7TP83v94rYj307O9X', // TODO: Create separate yearly price in Stripe
-      price: 799.99,
-      seatPrice: 120.00
-    },
-    trialDays: 14,
-    features: [
-      'Everything in Pro',
-      'SMS Notifications',
-      'Storm Maps',
-      'API Access',
-      'Priority Support'
-    ],
-    limits: {
-      leads: null,
-      sms: true,
-      stormMaps: true,
-      removeBranding: true,
-      apiAccess: true
-    }
   }
 }
 

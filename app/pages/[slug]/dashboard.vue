@@ -3,21 +3,14 @@ const { user, useActiveOrganization } = useAuth()
 const router = useRouter()
 const route = useRoute()
 const activeOrg = useActiveOrganization()
+const { currentPlan } = usePaymentStatus()
+
+const isPro = computed(() => currentPlan.value === 'pro')
+const showUpgradeModal = ref(false)
 
 const wordpressIntegration = computed(() => {
   const integrations: any = (activeOrg.value?.data as any)?.integrations
   return integrations?.wordpress
-})
-
-const hasActiveSubscription = computed(() => {
-  const subs: any[] = (activeOrg.value?.data as any)?.subscriptions || []
-  if (!Array.isArray(subs))
-    return false
-  return subs.some(s => s?.status === 'active' || s?.status === 'trialing')
-})
-
-const crmLocked = computed(() => {
-  return !!wordpressIntegration.value?.connected && !hasActiveSubscription.value
 })
 
 definePageMeta({
@@ -64,11 +57,20 @@ const statCards = computed(() => [
     color: 'text-purple-500'
   }
 ])
+
+// Handle stat card click - navigate for pro users, show upgrade modal for free users
+const handleStatClick = (stat: { to: string }) => {
+  if (isPro.value) {
+    router.push(stat.to)
+  } else {
+    showUpgradeModal.value = true
+  }
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <UCard v-if="!crmLocked">
+    <UCard>
       <template #header>
         <h3 class="text-lg font-semibold">
           Welcome back{{ user?.name ? `, ${user.name}` : '' }}!
@@ -80,17 +82,27 @@ const statCards = computed(() => [
     </UCard>
 
     <!-- Stats Cards -->
-    <div
-      v-if="!crmLocked"
-      class="grid grid-cols-1 gap-4 md:grid-cols-3"
-    >
-      <NuxtLink
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div
         v-for="stat in statCards"
         :key="stat.label"
-        :to="stat.to"
-        class="group"
+        class="group cursor-pointer"
+        @click="handleStatClick(stat)"
       >
-        <UCard class="transition-shadow hover:shadow-md">
+        <UCard class="transition-shadow hover:shadow-md relative">
+          <!-- Lock overlay for free users -->
+          <div
+            v-if="!isPro"
+            class="absolute inset-0 bg-neutral-100/50 dark:bg-neutral-800/50 backdrop-blur-[1px] rounded-lg flex items-center justify-center z-10"
+          >
+            <div class="flex items-center gap-1 text-sm text-neutral-500">
+              <UIcon
+                name="i-lucide-lock"
+                class="w-4 h-4"
+              />
+              <span>Upgrade to view</span>
+            </div>
+          </div>
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-neutral-500">
@@ -116,7 +128,7 @@ const statCards = computed(() => [
             </div>
           </div>
         </UCard>
-      </NuxtLink>
+      </div>
     </div>
 
     <UCard>
@@ -171,5 +183,11 @@ const statCards = computed(() => [
         </div>
       </div>
     </UCard>
+
+    <!-- Upgrade Modal -->
+    <BillingUpgradeModal
+      v-model:open="showUpgradeModal"
+      :organization-id="activeOrg?.data?.id"
+    />
   </div>
 </template>
