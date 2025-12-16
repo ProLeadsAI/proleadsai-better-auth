@@ -170,6 +170,11 @@ const currentPlanFeatures = computed<string[]>(() => {
   return tier?.features || []
 })
 
+// Check if we have only one tier - if so, show monthly/yearly side by side
+const availableTiers = computed(() => Object.values(PLAN_TIERS).sort((a, b) => a.order - b.order))
+const hasSingleTier = computed(() => availableTiers.value.length === 1)
+const singleTier = computed(() => hasSingleTier.value ? availableTiers.value[0] : null)
+
 // Handle tier selection - fetch preview first
 async function handleTierSelect(newTierKey: Exclude<PlanKey, 'free'>, newInterval: PlanInterval) {
   if (!activeOrg.value?.data?.id)
@@ -1072,7 +1077,7 @@ async function confirmPlanChange() {
 
           <!-- Billing Toggle (only show if multiple tiers) -->
           <div
-            v-if="Object.keys(PLAN_TIERS).length > 1"
+            v-if="!hasSingleTier"
             class="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-full p-1 shadow-sm border border-gray-200 dark:border-gray-700"
           >
             <button
@@ -1100,7 +1105,7 @@ async function confirmPlanChange() {
 
         <!-- Single Tier: Show Monthly/Yearly side by side -->
         <div
-          v-if="Object.keys(PLAN_TIERS).length === 1"
+          v-if="hasSingleTier && singleTier"
           class="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
           <div
@@ -1124,7 +1129,7 @@ async function confirmPlanChange() {
               <!-- Plan Header -->
               <div class="mb-4">
                 <h3 class="text-xl font-bold">
-                  {{ Object.values(PLAN_TIERS)[0].name }} {{ interval === 'month' ? 'Monthly' : 'Yearly' }}
+                  {{ singleTier.name }} {{ interval === 'month' ? 'Monthly' : 'Yearly' }}
                 </h3>
                 <p class="text-sm text-muted-foreground">
                   {{ interval === 'month' ? 'Pay month-to-month' : 'Best value' }}
@@ -1134,11 +1139,11 @@ async function confirmPlanChange() {
               <!-- Price -->
               <div class="mb-4">
                 <div class="flex items-baseline gap-1">
-                  <span class="text-4xl font-bold">${{ getTierForInterval(Object.values(PLAN_TIERS)[0].key as Exclude<PlanKey, 'free'>, interval).price.toFixed(2) }}</span>
+                  <span class="text-4xl font-bold">${{ getTierForInterval(singleTier.key as Exclude<PlanKey, 'free'>, interval).price.toFixed(2) }}</span>
                   <span class="text-muted-foreground">/ {{ interval === 'year' ? 'year' : 'month' }}</span>
                 </div>
                 <p class="text-sm text-muted-foreground mt-1">
-                  + ${{ getTierForInterval(Object.values(PLAN_TIERS)[0].key as Exclude<PlanKey, 'free'>, interval).seatPrice.toFixed(2) }}/seat
+                  + ${{ getTierForInterval(singleTier.key as Exclude<PlanKey, 'free'>, interval).seatPrice.toFixed(2) }}/seat
                 </p>
                 <div
                   v-if="!hasUsedTrial"
@@ -1148,19 +1153,19 @@ async function confirmPlanChange() {
                     name="i-lucide-shield-check"
                     class="w-4 h-4 text-green-500"
                   />
-                  <span class="text-xs text-green-600 dark:text-green-400 font-medium">{{ Object.values(PLAN_TIERS)[0].trialDays }}-day free trial</span>
+                  <span class="text-xs text-green-600 dark:text-green-400 font-medium">{{ singleTier.trialDays }}-day free trial</span>
                 </div>
               </div>
 
               <!-- CTA Button -->
               <UButton
                 size="lg"
-                :label="hasUsedTrial ? `Start ${Object.values(PLAN_TIERS)[0].name} Trial` : `Start ${Object.values(PLAN_TIERS)[0].name} Trial`"
+                :label="hasUsedTrial ? `Upgrade to ${singleTier.name}` : `Start ${singleTier.name} Trial`"
                 :color="billingInterval === interval ? 'primary' : 'neutral'"
                 :variant="billingInterval === interval ? 'solid' : 'outline'"
-                :loading="loading && selectedUpgradeTier === Object.values(PLAN_TIERS)[0].key"
+                :loading="loading && selectedUpgradeTier === singleTier.key"
                 class="w-full mb-4"
-                @click.stop="billingInterval = interval; handleUpgradeWithTier(Object.values(PLAN_TIERS)[0].key as Exclude<PlanKey, 'free'>)"
+                @click.stop="billingInterval = interval; handleUpgradeWithTier(singleTier.key as Exclude<PlanKey, 'free'>)"
               >
                 <template #trailing>
                   <UIcon name="i-lucide-arrow-right" />
@@ -1174,7 +1179,7 @@ async function confirmPlanChange() {
                 </p>
                 <ul class="space-y-2">
                   <li
-                    v-for="(feature, i) in Object.values(PLAN_TIERS)[0].features"
+                    v-for="(feature, i) in singleTier.features"
                     :key="i"
                     class="flex items-start gap-2 text-sm"
                   >

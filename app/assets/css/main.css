@@ -56,4 +56,20 @@
   [type="reset"]:disabled {
     @apply cursor-not-allowed;
   }
+
+  /* Prevent iOS Safari from zooming on input focus (requires 16px minimum) */
+  @media (max-width: 767px) {
+    input,
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="search"],
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
 }
