@@ -8,7 +8,7 @@
 // See docs/PLANS_ARCHITECTURE.md for full guide
 // =============================================================================
 
-export type PlanKey = 'free' | 'pro' | 'business'
+export type PlanKey = 'free' | 'pro'
 
 export type PlanVersion = 'v1' | 'v2' | 'v3' // Add new versions as needed
 
@@ -41,25 +41,71 @@ export interface PlanTier {
 }
 
 // =============================================================================
-// PLAN TIER DEFINITIONS
+// ENVIRONMENT DETECTION
 // =============================================================================
 
-export const PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
+const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NUXT_APP_ENV === 'development'
+
+// =============================================================================
+// DEVELOPMENT PLAN DEFINITIONS
+// =============================================================================
+
+const DEVELOPMENT_PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
+  pro: {
+    key: 'pro',
+    name: 'Pro (Dev)',
+    order: 1,
+    monthly: {
+      id: 'pro-monthly-dev',
+      priceId: 'price_dev_monthly',
+      price: 0.99,
+      seatPrice: 0.50
+    },
+    yearly: {
+      id: 'pro-yearly-dev',
+      priceId: 'price_dev_yearly',
+      price: 9.99,
+      seatPrice: 4.99
+    },
+    trialDays: 365,
+    features: [
+      'Full CRM Access & Rich Data',
+      'In-app Estimate Runner',
+      'Standalone Usage (No WP needed)',
+      'Unlimited Team Members',
+      'Priority Support',
+      '🚧 Development Mode'
+    ],
+    limits: {
+      leads: null,
+      sms: false,
+      stormMaps: false,
+      removeBranding: true,
+      apiAccess: true
+    }
+  }
+}
+
+// =============================================================================
+// PRODUCTION PLAN DEFINITIONS
+// =============================================================================
+
+const PRODUCTION_PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
   pro: {
     key: 'pro',
     name: 'Pro',
     order: 1,
     monthly: {
       id: 'pro-monthly-v1',
-      priceId: 'price_1ScBNpL7TP83v94rcrAseP5W',
+      priceId: 'price_1SoUmLRJPiME758uQNVGbdRG',
       price: 29.99,
-      seatPrice: 10.00
+      seatPrice: 4.99
     },
     yearly: {
       id: 'pro-yearly-v1',
-      priceId: 'price_1ScBOeL7TP83v94r6u2nAY8y',
-      price: 299.99,
-      seatPrice: 79.99
+      priceId: 'price_1SoUn8RJPiME758uktj6epNf',
+      price: 290.00,
+      seatPrice: 50.00
     },
     trialDays: 14,
     features: [
@@ -79,13 +125,20 @@ export const PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
   }
 }
 
+// =============================================================================
+// ENVIRONMENT-SPECIFIC PLAN SELECTION
+// =============================================================================
+
+export const PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> =
+  isDevelopment ? DEVELOPMENT_PLAN_TIERS : PRODUCTION_PLAN_TIERS
+
 // Free tier limits (not in PLAN_TIERS since it's not purchasable)
 export const FREE_LIMITS: FeatureLimits = {
-  leads: 5,
-  sms: false,
-  stormMaps: false,
-  removeBranding: false,
-  apiAccess: false
+  leads: isDevelopment ? 1000 : 5, // Generous dev limits
+  sms: !!isDevelopment,
+  stormMaps: !!isDevelopment,
+  removeBranding: !!isDevelopment,
+  apiAccess: !!isDevelopment
 }
 
 // =============================================================================
