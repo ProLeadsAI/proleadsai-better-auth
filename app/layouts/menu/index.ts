@@ -61,38 +61,34 @@ export const getMenus = (t: TranFunction, localePath: LocalePathFunction): Navig
   ]
 }
 
-export const getUserMenus = (t: TranFunction, localePath: LocalePathFunction, slug: string, userRole?: 'owner' | 'admin' | 'member', needsUpgrade = false, crmLocked = false): NavigationMenuItem[][] => {
+export const getUserMenus = (t: TranFunction, localePath: LocalePathFunction, slug: string, userRole?: 'owner' | 'admin' | 'member'): NavigationMenuItem[][] => {
   const items: NavigationMenuItem[] = []
 
-  if (!needsUpgrade) {
-    items.push({
-      label: t('menu.dashboard'),
-      icon: 'i-lucide-layout-dashboard',
-      to: localePath(`/${slug}/dashboard`)
-    })
-    if (!crmLocked) {
-      items.push({
-        label: 'Leads',
-        icon: 'i-lucide-funnel',
-        to: localePath(`/${slug}/leads`)
-      })
-      items.push({
-        label: 'Contacts',
-        icon: 'i-lucide-contact',
-        to: localePath(`/${slug}/contacts`)
-      })
-      items.push({
-        label: 'Submissions',
-        icon: 'i-lucide-inbox',
-        to: localePath(`/${slug}/submissions`)
-      })
-    }
-    items.push({
-      label: 'Members',
-      icon: 'i-lucide-users',
-      to: localePath(`/${slug}/members`)
-    })
-  }
+  items.push({
+    label: t('menu.dashboard'),
+    icon: 'i-lucide-layout-dashboard',
+    to: localePath(`/${slug}/dashboard`)
+  })
+  items.push({
+    label: 'Leads',
+    icon: 'i-lucide-funnel',
+    to: localePath(`/${slug}/leads`)
+  })
+  items.push({
+    label: 'Contacts',
+    icon: 'i-lucide-contact',
+    to: localePath(`/${slug}/contacts`)
+  })
+  items.push({
+    label: 'Submissions',
+    icon: 'i-lucide-inbox',
+    to: localePath(`/${slug}/submissions`)
+  })
+  items.push({
+    label: 'Members',
+    icon: 'i-lucide-users',
+    to: localePath(`/${slug}/members`)
+  })
 
   // Only owners can see billing (using permissions system)
   if (hasPermission(userRole, 'VIEW_BILLING_NAV')) {

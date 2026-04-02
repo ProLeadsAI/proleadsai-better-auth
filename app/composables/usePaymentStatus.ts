@@ -1,6 +1,6 @@
 /**
  * Composable for checking subscription payment status
- * Used across the app to detect failed payments and trial usage
+ * Used across the app to detect failed payments
  */
 export function usePaymentStatus() {
   const { useActiveOrganization } = useAuth()
@@ -18,36 +18,26 @@ export function usePaymentStatus() {
     const subs = subscriptions.value as any[]
     if (!subs || subs.length === 0)
       return null
-    // Only return subscriptions with valid statuses - do NOT fallback to incomplete/canceled
     return subs.find(
-      (s: any) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due'
+      (s: any) => s.status === 'active' || s.status === 'past_due'
     ) || null
   })
 
   // Check if subscription has a failed payment
   const isPaymentFailed = computed(() => activeSub.value?.status === 'past_due')
 
-  // Check if user should NOT get a free trial
-  // True if user owns multiple orgs (only first org gets trial)
-  const hasUsedTrial = computed(() => {
-    const data = activeOrg.value?.data as any
-    // If user owns multiple orgs, no trial on additional orgs
-    if (data?.userOwnsMultipleOrgs) {
-      return true
-    }
-    // Fallback to checking current org's subscriptions
-    const subs = subscriptions.value as any[]
-    if (!subs || subs.length === 0)
-      return false
-    return subs.some((s: any) => s.trialStart || s.trialEnd || s.status === 'trialing')
-  })
-
-  // Current plan type
+  // Current plan type (detects starter/pro from plan ID)
   const currentPlan = computed(() => {
-    if (activeSub.value) {
+    if (!activeSub.value)
+      return 'free'
+    const planId = activeSub.value.plan
+    if (!planId)
+      return 'free'
+    if (planId.includes('starter'))
+      return 'starter'
+    if (planId.includes('pro'))
       return 'pro'
-    }
-    return 'free'
+    return 'starter' // Default paid plan
   })
 
   // Organization ID helper
@@ -58,7 +48,6 @@ export function usePaymentStatus() {
     subscriptions,
     activeSub,
     isPaymentFailed,
-    hasUsedTrial,
     currentPlan,
     organizationId,
     organizationSlug

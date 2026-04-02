@@ -12,20 +12,14 @@ const emit = defineEmits<{
   (e: 'select', tierKey: Exclude<PlanKey, 'free'>, interval: PlanInterval): void
 }>()
 
-// Each tier has its own interval selection
-const tierIntervals = ref<Record<string, PlanInterval>>({
-  pro: props.currentTierKey === 'pro' ? props.currentInterval : 'year',
-  business: props.currentTierKey === 'business' ? props.currentInterval : 'year'
-})
-
 // Get plan config for display
 function getPlanConfig(tierKey: Exclude<PlanKey, 'free'>) {
-  return getTierForInterval(tierKey, tierIntervals.value[tierKey] || 'year')
+  return getTierForInterval(tierKey, 'month')
 }
 
 // Check if this is the current plan
 function isCurrentPlan(tierKey: string) {
-  return tierKey === props.currentTierKey && tierIntervals.value[tierKey] === props.currentInterval
+  return tierKey === props.currentTierKey
 }
 
 // Check if this tier is the current tier (regardless of interval)
@@ -35,9 +29,7 @@ function isCurrentTier(tierKey: string) {
 
 // Check if this is an upgrade or downgrade
 function getPlanAction(tierKey: Exclude<PlanKey, 'free'>) {
-  const selectedInterval = tierIntervals.value[tierKey] || 'year'
-
-  if (tierKey === props.currentTierKey && selectedInterval === props.currentInterval)
+  if (tierKey === props.currentTierKey)
     return 'current'
 
   const currentTier = PLAN_TIERS[props.currentTierKey as Exclude<PlanKey, 'free'>]
@@ -51,10 +43,7 @@ function getPlanAction(tierKey: Exclude<PlanKey, 'free'>) {
   if (targetTier.order < currentTier.order)
     return 'downgrade'
 
-  // Same tier, different interval
-  if (selectedInterval === 'year' && props.currentInterval === 'month')
-    return 'upgrade'
-  return 'downgrade'
+  return 'current'
 }
 
 function getButtonLabel(tierKey: Exclude<PlanKey, 'free'>) {
@@ -72,22 +61,12 @@ function getButtonColor(tierKey: Exclude<PlanKey, 'free'>) {
     return 'neutral'
   if (action === 'upgrade')
     return 'primary'
-  return 'gray'
+  return 'neutral'
 }
 
 function handleSelect(tierKey: Exclude<PlanKey, 'free'>) {
-  const selectedInterval = tierIntervals.value[tierKey] || 'year'
-  if (!(tierKey === props.currentTierKey && selectedInterval === props.currentInterval)) {
-    emit('select', tierKey, selectedInterval)
-  }
-}
-
-// Calculate yearly savings
-function getYearlySavings(tierKey: Exclude<PlanKey, 'free'>) {
-  const tier = PLAN_TIERS[tierKey]
-  const monthlyTotal = tier.monthly.price * 12
-  const yearlyTotal = tier.yearly.price
-  return Math.round(((monthlyTotal - yearlyTotal) / monthlyTotal) * 100)
+  if (!isCurrentPlan(tierKey))
+    emit('select', tierKey, 'month')
 }
 </script>
 
@@ -133,47 +112,14 @@ function getYearlySavings(tierKey: Exclude<PlanKey, 'free'>) {
             </p>
           </div>
 
-          <!-- Interval Toggle (per tier) -->
-          <div class="mb-4">
-            <div class="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-full">
-              <button
-                class="flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all"
-                :class="tierIntervals[tier.key] === 'month'
-                  ? 'bg-white dark:bg-gray-700 shadow text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'"
-                @click="tierIntervals[tier.key] = 'month'"
-              >
-                Monthly
-              </button>
-              <button
-                class="flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all relative"
-                :class="tierIntervals[tier.key] === 'year'
-                  ? 'bg-white dark:bg-gray-700 shadow text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'"
-                @click="tierIntervals[tier.key] = 'year'"
-              >
-                Yearly
-                <span class="ml-1 text-green-600 dark:text-green-400 font-bold">
-                  -{{ getYearlySavings(tier.key as Exclude<PlanKey, 'free'>) }}%
-                </span>
-              </button>
-            </div>
-          </div>
-
           <!-- Price -->
           <div class="mb-6">
             <div class="flex items-baseline gap-1">
               <span class="text-4xl font-bold">${{ getPlanConfig(tier.key as Exclude<PlanKey, 'free'>).price.toFixed(2) }}</span>
-              <span class="text-muted-foreground">/{{ tierIntervals[tier.key] === 'year' ? 'yr' : 'mo' }}</span>
+              <span class="text-muted-foreground">/mo</span>
             </div>
             <p class="text-sm text-muted-foreground mt-1">
-              + ${{ getPlanConfig(tier.key as Exclude<PlanKey, 'free'>).seatPrice.toFixed(2) }}/{{ tierIntervals[tier.key] === 'year' ? 'yr' : 'mo' }} per seat
-            </p>
-            <p
-              v-if="tierIntervals[tier.key] === 'year'"
-              class="text-sm text-green-600 dark:text-green-400 mt-1"
-            >
-              Save {{ getYearlySavings(tier.key as Exclude<PlanKey, 'free'>) }}% vs monthly
+              Unlimited team members
             </p>
           </div>
 

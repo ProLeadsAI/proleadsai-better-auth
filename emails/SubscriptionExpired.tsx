@@ -18,25 +18,10 @@ const mutedText = {
   color: '#6b7280'
 }
 
-const alertBox = {
-  backgroundColor: '#fef2f2',
-  border: '1px solid #fecaca',
-  borderRadius: '8px',
-  padding: '16px',
-  margin: '16px 0'
-}
-
-const alertText = {
-  fontSize: '14px',
-  color: '#991b1b',
-  margin: '0'
-}
-
 interface SubscriptionExpiredProps {
   name: string
   teamName: string
   planName: string
-  membersRemoved: number
   billingUrl: string
   appName?: string
 }
@@ -45,7 +30,6 @@ export function SubscriptionExpired({
   name,
   teamName,
   planName,
-  membersRemoved,
   billingUrl,
   appName
 }: SubscriptionExpiredProps) {
@@ -73,21 +57,8 @@ export function SubscriptionExpired({
         has expired and your organization has been downgraded to the free plan.
       </Text>
 
-      {membersRemoved > 0 && (
-        <Section style={alertBox}>
-          <Text style={alertText}>
-            <strong>{membersRemoved}</strong>
-            {' '}
-            team member
-            {membersRemoved > 1 ? 's have' : ' has'}
-            {' '}
-            been removed from your organization. You will need to re-invite them if you reactivate your subscription.
-          </Text>
-        </Section>
-      )}
-
       <Text style={text}>
-        Your organization data from the Pro plan will be retained for
+        Your organization data will be retained for
         {' '}
         <strong>90 days</strong>
         . After that, it will be permanently deleted.

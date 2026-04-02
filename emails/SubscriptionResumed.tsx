@@ -23,7 +23,6 @@ interface SubscriptionResumedProps {
   teamName: string
   planName: string
   billingCycle: 'monthly' | 'yearly'
-  seats: number
   amount: string
   nextBillingDate: string
   dashboardUrl: string
@@ -68,7 +67,6 @@ export function SubscriptionResumed({
   teamName,
   planName,
   billingCycle,
-  seats,
   amount,
   nextBillingDate,
   dashboardUrl,
@@ -114,14 +112,6 @@ export function SubscriptionResumed({
                 (
                 {billingCycle === 'monthly' ? 'Monthly' : 'Yearly'}
                 )
-              </td>
-            </tr>
-            <tr>
-              <td style={labelCell}>Seats</td>
-              <td style={valueCell}>
-                {seats}
-                {' '}
-                {seats === 1 ? 'seat' : 'seats'}
               </td>
             </tr>
             <tr>

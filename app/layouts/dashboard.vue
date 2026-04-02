@@ -16,22 +16,6 @@ const { t } = useI18n()
 const localePath = useLocalePath()
 const isCollapsed = ref(false)
 
-const wordpressIntegration = computed(() => {
-  const integrations: any = (activeOrg.value?.data as any)?.integrations
-  return integrations?.wordpress
-})
-
-const hasActiveSubscription = computed(() => {
-  const subs: any[] = (activeOrg.value?.data as any)?.subscriptions || []
-  if (!Array.isArray(subs))
-    return false
-  return subs.some(s => s?.status === 'active' || s?.status === 'trialing')
-})
-
-const crmLocked = computed(() => {
-  return !!wordpressIntegration.value?.connected && !hasActiveSubscription.value
-})
-
 // Fetch organization data with SSR to ensure members data is available for canManageTeam
 // SSR-only to prevent flicker on page load
 const { data: layoutOrgData, refresh: _refreshLayoutOrg } = await useAsyncData(
@@ -85,9 +69,7 @@ if (layoutOrgData.value) {
   // Flatten the structure: org data + subscriptions at top level
   const flattenedData = {
     ...layoutOrgData.value.organization,
-    subscriptions: layoutOrgData.value.subscriptions,
-    needsUpgrade: layoutOrgData.value.needsUpgrade,
-    userOwnsMultipleOrgs: layoutOrgData.value.userOwnsMultipleOrgs
+    subscriptions: layoutOrgData.value.subscriptions
   }
 
   if (!activeOrg.value) {
@@ -114,9 +96,7 @@ watch(() => layoutOrgData.value, (newOrg) => {
     if ((newOrg as any).organization) {
       flattenedData = {
         ...(newOrg as any).organization,
-        subscriptions: (newOrg as any).subscriptions,
-        needsUpgrade: (newOrg as any).needsUpgrade,
-        userOwnsMultipleOrgs: (newOrg as any).userOwnsMultipleOrgs
+        subscriptions: (newOrg as any).subscriptions
       }
     }
 
@@ -142,8 +122,6 @@ watch(() => layoutOrgData.value, (newOrg) => {
 }, { immediate: true })
 
 const isCreateTeamModalOpen = ref(false)
-const showUpgradeModal = ref(false)
-const upgradeOrgId = ref<string | undefined>(undefined)
 const newTeamName = ref('')
 const newTeamSlug = ref('')
 
@@ -151,17 +129,6 @@ const isSlugManuallyEdited = ref(false)
 const creatingTeam = ref(false)
 const slugError = ref('')
 const isCheckingSlug = ref(false)
-const ownedTeamsCount = ref(0)
-const _selectedInterval = ref<'month' | 'year'>('month')
-
-const fetchOwnedCount = async () => {
-  try {
-    const { count } = await $fetch('/api/organization/get-owned-count', { headers: useRequestHeaders(['cookie']) })
-    ownedTeamsCount.value = count
-  } catch (e) {
-    console.error('Failed to fetch owned teams count', e)
-  }
-}
 
 const handleOpenCreateModal = async () => {
   // Just open the create team modal
@@ -310,39 +277,6 @@ const userDisplayName = computed(() => {
   return 'User'
 })
 
-// Get needsUpgrade from the SSR data
-const needsUpgrade = computed(() => {
-  // activeOrg.data is the flattened object. The server returns { organization: {...}, subscriptions: [], needsUpgrade: boolean }
-  // But the watcher flattens it into activeOrg.value.data
-  // We need to make sure needsUpgrade is preserved during flattening or accessed from layoutOrgData directly
-
-  if (activeOrg.value?.data?.needsUpgrade !== undefined) {
-    return activeOrg.value.data.needsUpgrade
-  }
-
-  // Fallback to layoutOrgData if activeOrg structure is different
-  if (layoutOrgData.value && 'needsUpgrade' in layoutOrgData.value) {
-    return (layoutOrgData.value as any).needsUpgrade
-  }
-
-  return false
-})
-
-// Redirect to billing if needsUpgrade and on a restricted page
-watch([needsUpgrade, () => route.path], ([upgradeNeeded, currentPath]) => {
-  if (!upgradeNeeded || !import.meta.client)
-    return
-
-  // Pages that are allowed even when needsUpgrade
-  const allowedPaths = ['/billing', '/settings', '/profile']
-  const isAllowedPage = allowedPaths.some(p => currentPath.includes(p))
-
-  if (!isAllowedPage) {
-    // Redirect to billing page with upgrade modal
-    router.replace(localePath(`/${activeOrgSlug.value}/billing?showUpgrade=true`))
-  }
-}, { immediate: true })
-
 defineShortcuts({
   'g-1': () => router.push(localePath(`/${activeOrgSlug.value}/dashboard`))
 })
@@ -350,7 +284,7 @@ const pathNameItemMap: StringDict<NavigationMenuItem> = {}
 const pathNameParentMap: StringDict<NavigationMenuItem | undefined> = {}
 
 // Pass user role to menu instead of boolean flags
-const menus = computed(() => getUserMenus(t, localePath, activeOrgSlug.value, currentUserRole.value, needsUpgrade.value, crmLocked.value))
+const menus = computed(() => getUserMenus(t, localePath, activeOrgSlug.value, currentUserRole.value))
 
 const menuIterator = (menus: NavigationMenuItem[], parent?: NavigationMenuItem) => {
   for (const menu of menus) {
@@ -384,52 +318,6 @@ async function createTeam() {
   if (!newTeamName.value.trim() || !newTeamSlug.value.trim())
     return
 
-  // Check if user owns 1+ teams
-  await fetchOwnedCount()
-
-  if (ownedTeamsCount.value >= 1) {
-    // User owns 1+ teams - just create the team, they can upgrade from billing page
-    creatingTeam.value = true
-    try {
-      const { data: newTeam, error: createError } = await organization.create({
-        name: newTeamName.value,
-        slug: newTeamSlug.value
-      })
-
-      if (createError || !newTeam) {
-        throw createError || new Error('Failed to create team')
-      }
-
-      // Team created successfully - mark it as needing upgrade
-      await organization.setActive({ organizationId: newTeam.id })
-
-      // Store flag in localStorage - this team needs Pro upgrade
-      localStorage.setItem(`org_${newTeam.id}_needsUpgrade`, 'true')
-
-      toast.add({
-        title: 'Team created successfully',
-        description: 'Upgrade to Pro to unlock all features',
-        color: 'success'
-      })
-      newTeamName.value = ''
-      newTeamSlug.value = ''
-      isSlugManuallyEdited.value = false
-      isCreateTeamModalOpen.value = false
-      // Navigate to new team billing page to upgrade
-      window.location.href = `/${newTeam.slug}/billing?showUpgrade=true`
-    } catch (e: any) {
-      toast.add({
-        title: 'Failed to create team',
-        description: e.message,
-        color: 'error'
-      })
-    } finally {
-      creatingTeam.value = false
-    }
-    return
-  }
-
-  // First team - create it for free
   creatingTeam.value = true
   try {
     const { data, error } = await organization.create({
@@ -447,7 +335,6 @@ async function createTeam() {
       newTeamSlug.value = ''
       isSlugManuallyEdited.value = false
       isCreateTeamModalOpen.value = false
-      // Navigate to new team dashboard
       window.location.href = `/${data.slug}/dashboard`
     }
   } catch (e: any) {
@@ -659,6 +546,9 @@ async function createTeam() {
         </template>
         <template #right>
           <slot name="navRight" />
+          <ClientOnly>
+            <BillingCreditIndicator />
+          </ClientOnly>
           <LocaleToggler />
           <ClientOnly>
             <ColorModeToggler />
@@ -739,14 +629,5 @@ async function createTeam() {
         />
       </template>
     </UModal>
-
-    <!-- Upgrade Modal for Creating Second Org -->
-    <BillingUpgradeModal
-      v-model:open="showUpgradeModal"
-      reason="create-org"
-      :organization-id="upgradeOrgId"
-      :team-name="newTeamName"
-      :team-slug="newTeamSlug"
-    />
   </div>
 </template>

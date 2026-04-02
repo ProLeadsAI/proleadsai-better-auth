@@ -1,4 +1,4 @@
-import { FREE_LIMITS, PLAN_TIERS } from '~~/shared/utils/plans'
+import { CREDIT_BOOSTERS, FREE_LIMITS, PLAN_TIERS } from '~~/shared/utils/plans'
 
 /**
  * Public API endpoint for fetching plan information
@@ -18,20 +18,11 @@ export default defineEventHandler(async (event) => {
     key: tier.key,
     name: tier.name,
     order: tier.order,
-    trialDays: tier.trialDays,
     features: tier.features,
     limits: tier.limits,
     pricing: {
       monthly: {
-        price: tier.monthly.price,
-        seatPrice: tier.monthly.seatPrice
-        // Don't expose internal IDs or Stripe price IDs publicly
-      },
-      yearly: {
-        price: tier.yearly.price,
-        seatPrice: tier.yearly.seatPrice,
-        // Calculate savings percentage
-        savingsPercent: Math.round((1 - (tier.yearly.price / (tier.monthly.price * 12))) * 100)
+        price: tier.monthly.price
       }
     }
   }))
@@ -41,21 +32,29 @@ export default defineEventHandler(async (event) => {
 
   return {
     plans,
+    creditBoosters: CREDIT_BOOSTERS.map(booster => ({
+      id: booster.id,
+      name: booster.name,
+      credits: booster.credits,
+      price: booster.price,
+      description: booster.description,
+      pricePerCredit: (booster.price / booster.credits).toFixed(2)
+    })),
     freeTier: {
       name: 'Free',
       limits: FREE_LIMITS,
       features: [
-        'Up to 5 leads',
-        'Basic features',
+        `${FREE_LIMITS.credits} credits per month`,
+        'All features included',
+        'Unlimited team members',
         'WordPress plugin'
       ]
     },
-    // Metadata for the marketing site
     meta: {
       currency: 'USD',
       currencySymbol: '$',
-      defaultTrialDays: 14,
-      includedSeats: 1 // Base plan includes 1 seat
+      unlimitedMembers: true,
+      billingInterval: 'monthly'
     }
   }
 })

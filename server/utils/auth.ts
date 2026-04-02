@@ -240,30 +240,8 @@ export const createBetterAuth = () => betterAuth({
         }
       }
     },
-    member: {
-      create: {
-        after: async (_member: any) => {
-          // await syncSubscriptionQuantity(member.organizationId)
-        }
-      },
-      delete: {
-        after: async (_member: any) => {
-          // await syncSubscriptionQuantity(member.organizationId)
-        }
-      }
-    },
-    invitation: {
-      create: {
-        after: async (_invitation: any) => {
-          // await syncSubscriptionQuantity(invitation.organizationId)
-        }
-      },
-      delete: {
-        after: async (_invitation: any) => {
-          // await syncSubscriptionQuantity(invitation.organizationId)
-        }
-      }
-    }
+    member: {},
+    invitation: {}
   },
   secondaryStorage: cacheClient,
   emailAndPassword: {

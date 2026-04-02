@@ -4,7 +4,6 @@ interface PlanInfo {
   tierName: string
   interval: 'month' | 'year'
   price: number
-  seatPrice: number
 }
 
 interface ProrationInfo {
@@ -77,20 +76,16 @@ const cardIcon = computed(() => {
 const intervalLabel = (interval: string) => interval === 'year' ? 'yearly' : 'monthly'
 const intervalShort = (interval: string) => interval === 'year' ? 'yr' : 'mo'
 
-const additionalSeats = computed(() => Math.max(0, (props.preview?.seats || 1) - 1))
-
 const newTotal = computed(() => {
   if (!props.preview?.newPlan)
     return 0
-  const base = props.preview.newPlan.price
-  return base + (additionalSeats.value * props.preview.newPlan.seatPrice)
+  return props.preview.newPlan.price
 })
 
 const currentTotal = computed(() => {
   if (!props.preview?.currentPlan)
     return 0
-  const base = props.preview.currentPlan.price
-  return base + (additionalSeats.value * props.preview.currentPlan.seatPrice)
+  return props.preview.currentPlan.price
 })
 
 function handleConfirm() {
@@ -207,30 +202,9 @@ function handleConfirm() {
         </div>
       </div>
 
-      <!-- Trial Info -->
-      <div
-        v-if="preview.isTrialing"
-        class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
-      >
-        <div class="flex items-start gap-3">
-          <UIcon
-            name="i-lucide-info"
-            class="w-5 h-5 text-blue-500 mt-0.5"
-          />
-          <div>
-            <p class="font-medium text-blue-900 dark:text-blue-100">
-              Trial Active
-            </p>
-            <p class="text-sm text-blue-700 dark:text-blue-300">
-              {{ preview.message }}
-            </p>
-          </div>
-        </div>
-      </div>
-
       <!-- Proration Details (for active subscriptions) -->
       <div
-        v-if="!preview.isTrialing && preview.proration"
+        v-if="preview.proration"
         class="space-y-3"
       >
         <!-- Upgrade: Show charge -->
@@ -288,17 +262,8 @@ function handleConfirm() {
 
         <!-- Base plan -->
         <div class="flex justify-between text-sm">
-          <span class="text-muted-foreground">{{ preview.newPlan.tierName }} Plan (includes 1 seat)</span>
+          <span class="text-muted-foreground">{{ preview.newPlan.tierName }} Plan</span>
           <span>${{ preview.newPlan.price.toFixed(2) }}/{{ intervalShort(preview.newPlan.interval) }}</span>
-        </div>
-
-        <!-- Additional seats -->
-        <div
-          v-if="additionalSeats > 0"
-          class="flex justify-between text-sm"
-        >
-          <span class="text-muted-foreground">Additional seats ({{ additionalSeats }} × ${{ preview.newPlan.seatPrice.toFixed(2) }})</span>
-          <span>${{ (additionalSeats * preview.newPlan.seatPrice).toFixed(2) }}/{{ intervalShort(preview.newPlan.interval) }}</span>
         </div>
 
         <!-- Total -->
@@ -319,7 +284,7 @@ function handleConfirm() {
 
       <!-- Payment Method -->
       <div
-        v-if="preview.paymentMethod && preview.isUpgrade && !preview.isTrialing"
+        v-if="preview.paymentMethod && preview.isUpgrade"
         class="flex items-center gap-2 text-sm text-muted-foreground"
       >
         <UIcon

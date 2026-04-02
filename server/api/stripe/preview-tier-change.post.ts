@@ -19,8 +19,13 @@ export default defineEventHandler(async (event) => {
     newInterval: PlanInterval
   }
 
-  if (!organizationId || !newTierKey || !newInterval) {
+  if (!organizationId || !newTierKey) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
+  }
+
+  const targetInterval: PlanInterval = newInterval || 'month'
+  if (targetInterval !== 'month') {
+    throw createError({ statusCode: 400, statusMessage: 'Only monthly billing is supported' })
   }
 
   const db = await useDB()
@@ -55,7 +60,7 @@ export default defineEventHandler(async (event) => {
   })
 
   const subscription = subscriptions.data.find(sub =>
-    sub.status === 'active' || sub.status === 'trialing'
+    sub.status === 'active'
   )
 
   if (!subscription) {
@@ -65,8 +70,6 @@ export default defineEventHandler(async (event) => {
   // Get current plan info from STRIPE (source of truth), not local DB
   const stripePrice = subscription.items.data[0].price
   const stripePriceId = stripePrice.id
-  const stripeInterval = stripePrice.recurring?.interval as 'month' | 'year' || 'month'
-
   // Find which plan this price belongs to using Stripe price ID
   const stripePlanInfo = getPlanByStripePriceId(stripePriceId)
   const stripeTierKey = stripePlanInfo?.tierKey || 'pro'
@@ -78,44 +81,38 @@ export default defineEventHandler(async (event) => {
 
   // Use Stripe as source of truth for current plan
   const currentTierKey = stripeTierKey
-  const currentInterval: PlanInterval = stripeInterval
+  const currentInterval: PlanInterval = 'month'
   const currentTier = PLAN_TIERS[currentTierKey as Exclude<PlanKey, 'free'>]
   const targetTier = PLAN_TIERS[newTierKey]
 
   console.log('[preview-tier-change] Plan info:', {
     stripePriceId,
-    stripeInterval,
     stripeTierKey,
     localSubPlan: localSub?.plan,
     currentTierKey,
-    currentInterval,
     currentTierName: currentTier?.name,
     newTierKey,
-    newInterval
+    newInterval: targetInterval
   })
 
   if (!targetTier) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid tier' })
   }
 
-  const newPlan = getTierForInterval(newTierKey, newInterval)
+  const newPlan = getTierForInterval(newTierKey, targetInterval)
   const currentPlan = currentTier ? getTierForInterval(currentTierKey as Exclude<PlanKey, 'free'>, currentInterval) : null
 
   // Determine if upgrade or downgrade
   const isUpgrade = !currentTier ||
-    targetTier.order > currentTier.order ||
-    (targetTier.order === currentTier.order && newInterval === 'year' && currentInterval === 'month')
+    targetTier.order > currentTier.order
 
-  const isDowngrade = currentTier && (
-    targetTier.order < currentTier.order ||
-    (targetTier.order === currentTier.order && newInterval === 'month' && currentInterval === 'year')
-  )
+  const isDowngrade = currentTier && targetTier.order < currentTier.order
 
   // All plan tier downgrades are scheduled at period end (no credit)
   // Only seat downgrades get prorated credit
   const isScheduledDowngrade = isDowngrade
 
-  const isSamePlan = currentTierKey === newTierKey && currentInterval === newInterval
+  const isSamePlan = currentTierKey === newTierKey
 
   if (isSamePlan) {
     return {
@@ -140,14 +137,9 @@ export default defineEventHandler(async (event) => {
     if (!periodEndTimestamp) {
       // Calculate next period from billing_cycle_anchor
       const anchor = (fullSubscription as any).billing_cycle_anchor
-      const interval = (fullSubscription as any).plan?.interval || 'month'
       if (anchor) {
         const anchorDate = new Date(anchor * 1000)
-        if (interval === 'year') {
-          anchorDate.setFullYear(anchorDate.getFullYear() + 1)
-        } else {
-          anchorDate.setMonth(anchorDate.getMonth() + 1)
-        }
+        anchorDate.setMonth(anchorDate.getMonth() + 1)
         periodEndTimestamp = Math.floor(anchorDate.getTime() / 1000)
       }
     }
@@ -166,21 +158,18 @@ export default defineEventHandler(async (event) => {
             tierKey: currentTierKey,
             tierName: currentTier?.name || 'Pro',
             interval: currentInterval,
-            price: currentPlan.price,
-            seatPrice: currentPlan.seatPrice
+            price: currentPlan.price
           }
         : null,
       newPlan: {
         tierKey: newTierKey,
         tierName: targetTier.name,
-        interval: newInterval,
-        price: newPlan.price,
-        seatPrice: newPlan.seatPrice
+        interval: targetInterval,
+        price: newPlan.price
       },
       isUpgrade: false,
       isDowngrade: true,
-      isScheduledDowngrade: true, // Flag for UI to show different message
-      seats: qty,
+      isScheduledDowngrade: true,
       periodEnd: periodEnd ? periodEnd.toISOString() : null,
       paymentMethod: null, // Not needed for scheduled downgrade
       message: `Your plan will change to ${targetTier.name} on ${periodEnd?.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. You'll keep ${currentTier?.name} features until then.`
@@ -204,37 +193,6 @@ export default defineEventHandler(async (event) => {
       }
     } catch (e) {
       console.error('[preview-tier-change] Error fetching payment method:', e)
-    }
-  }
-
-  // For trialing subscriptions, no proration - they just switch plans
-  if (subscription.status === 'trialing') {
-    const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000) : null
-
-    return {
-      isTrialing: true,
-      trialEnd: trialEnd?.toISOString(),
-      currentPlan: currentPlan
-        ? {
-            tierKey: currentTierKey,
-            tierName: currentTier?.name || 'Pro',
-            interval: currentInterval,
-            price: currentPlan.price,
-            seatPrice: currentPlan.seatPrice
-          }
-        : null,
-      newPlan: {
-        tierKey: newTierKey,
-        tierName: targetTier.name,
-        interval: newInterval,
-        price: newPlan.price,
-        seatPrice: newPlan.seatPrice
-      },
-      isUpgrade,
-      isDowngrade,
-      seats: subscription.items.data[0].quantity || 1,
-      paymentMethod,
-      message: 'Your trial will continue. You will be charged the new plan price when your trial ends.'
     }
   }
 
@@ -326,20 +284,17 @@ export default defineEventHandler(async (event) => {
             tierKey: currentTierKey,
             tierName: currentTier?.name || 'Pro',
             interval: currentInterval,
-            price: currentPlan.price,
-            seatPrice: currentPlan.seatPrice
+            price: currentPlan.price
           }
         : null,
       newPlan: {
         tierKey: newTierKey,
         tierName: targetTier.name,
-        interval: newInterval,
-        price: newPlan.price,
-        seatPrice: newPlan.seatPrice
+        interval: targetInterval,
+        price: newPlan.price
       },
       isUpgrade,
       isDowngrade,
-      seats: quantity,
       proration: {
         credit: creditAmount,
         charge: chargeAmount,

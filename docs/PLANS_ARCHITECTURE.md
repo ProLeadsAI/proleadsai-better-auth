@@ -69,7 +69,7 @@ Each plan tier (e.g., `pro`, `business`) has:
   trialDays: 14,
   features: ['Feature 1', 'Feature 2'],
   limits: {
-    leads: null,                 // null = unlimited
+    credits: 500,                // credits per billing cycle, null = unlimited
     sms: false,
     stormMaps: false,
     removeBranding: true,
@@ -121,7 +121,7 @@ export const PLAN_TIERS: Record<PlanKey, PlanTier> = {
       'Priority Support'
     ],
     limits: {
-      leads: null,
+      credits: null,
       sms: true,
       stormMaps: true,
       removeBranding: true,
@@ -381,7 +381,7 @@ export interface PlanVariant {
 }
 
 export interface FeatureLimits {
-  leads: number | null  // null = unlimited
+  credits: number | null  // credits per billing cycle, null = unlimited
   sms: boolean
   stormMaps: boolean
   removeBranding: boolean
@@ -608,43 +608,45 @@ Use `getPlanLimits(planId)` or `canAccessFeature(planId, feature)` to check:
 ```ts
 // Checks legacy overrides first, then falls back to tier limits
 const limits = getPlanLimits('pro-monthly-v1')
-// { leads: null, sms: true, ... } - has SMS override
+// { credits: 500, sms: true, ... } - has SMS override
 
 const limits2 = getPlanLimits('pro-monthly-v2')
-// { leads: null, sms: false, ... } - uses current tier limits
+// { credits: 500, sms: false, ... } - uses current tier limits
 ```
 
 ---
 
 ## Enforcing Feature Limits
 
-Example enforcement patterns (not yet implemented):
+Credit-based enforcement is implemented via `consumeCredits()` in `server/utils/credits.ts`.
 
 ```ts
-// In API endpoint
-import { canAccessFeature, getPlanLimits } from '~~/shared/utils/plans'
+// In API endpoint - deduct credits for an action
+import { consumeCredits } from '~~/server/utils/credits'
 
-// Boolean feature check
+// Search costs 5 credits
+await consumeCredits({ organizationId: orgId, action: 'search' })
+
+// Lead submission costs 20 credits
+await consumeCredits({ organizationId: orgId, action: 'lead_submit' })
+
+// Boolean feature check (unchanged)
+import { canAccessFeature } from '~~/shared/utils/plans'
 if (!canAccessFeature(subscription.plan, 'sms')) {
   throw createError({ statusCode: 403, message: 'SMS requires Pro+ plan' })
 }
+```
 
-// Numeric limit check
-const limits = getPlanLimits(subscription.plan)
-if (limits.leads !== null && currentLeadCount >= limits.leads) {
-  throw createError({ statusCode: 403, message: 'Lead limit reached' })
-}
-
-// Middleware pattern
-export function requireFeature(feature: keyof FeatureLimits) {
-  return async (event: H3Event) => {
-    const subscription = await getSubscription(event)
-    if (!canAccessFeature(subscription?.plan, feature)) {
-      throw createError({ statusCode: 403, message: 'Upgrade required' })
-    }
-  }
+Credit costs are defined in `shared/utils/credits.ts`:
+```ts
+export const CREDIT_COSTS = {
+  search: 5,
+  lead_submit: 20
 }
 ```
+
+Credit usage is tracked in the `organization_usage` table and resets each billing cycle.
+Concurrency is handled via atomic SQL: `UPDATE ... WHERE credits_used + cost <= maxCredits`.
 
 ---
 

@@ -3,7 +3,6 @@
  * Handles sending emails for subscription events
  */
 
-import type Stripe from 'stripe'
 import { eq } from 'drizzle-orm'
 import { organization as organizationTable, user as userTable } from '~~/server/db/schema'
 import { findPlanById, findPlanByPriceId, getPlanPricing } from '~~/shared/utils/plans'
@@ -14,9 +13,7 @@ import {
   renderSubscriptionCanceled,
   renderSubscriptionConfirmed,
   renderSubscriptionExpired,
-  renderSubscriptionResumed,
-  renderTrialExpired,
-  renderTrialStarted
+  renderSubscriptionResumed
 } from './email'
 import { runtimeConfig } from './runtimeConfig'
 import { createStripeClient } from './stripe'
@@ -41,7 +38,6 @@ interface OrgOwnerInfo {
 interface SubscriptionInfo {
   planName: string
   billingCycle: 'monthly' | 'yearly'
-  seats: number
   amount: string
   periodEnd: Date | null
 }
@@ -114,13 +110,9 @@ function getSubscriptionInfo(subscription: any): SubscriptionInfo {
     || subscription.items?.data?.[0]?.plan?.interval
   const billingCycle = interval === 'year' ? 'yearly' : 'monthly'
 
-  // Get seats from subscription
-  const seats = subscription.seats || subscription.quantity || subscription.items?.data?.[0]?.quantity || 1
-
   return {
-    planName: planResult?.tier.name || 'Pro',
+    planName: planResult?.tier.name || 'Starter',
     billingCycle,
-    seats,
     amount: planResult?.variant.price ? `$${planResult.variant.price}` : 'See invoice',
     periodEnd: subscription.periodEnd
       ? new Date(subscription.periodEnd)
@@ -134,7 +126,6 @@ function getSubscriptionInfo(subscription: any): SubscriptionInfo {
  * Get detailed subscription info from Stripe API
  */
 async function getStripeSubscriptionDetails(subscription: any): Promise<{
-  seats: number
   amount: string
   periodEnd: Date | null
 } | null> {
@@ -150,38 +141,21 @@ async function getStripeSubscriptionDetails(subscription: any): Promise<{
     const client = createStripeClient()
     const stripeSub = await client.subscriptions.retrieve(subId, {
       expand: ['items.data.price']
-    }) as Stripe.Subscription
+    }) as any
 
-    console.log('[Stripe Email] Stripe subscription:', {
-      id: stripeSub.id,
-      status: stripeSub.status,
-      current_period_end: stripeSub.current_period_end,
-      items: stripeSub.items.data.map(i => ({
-        quantity: i.quantity,
-        unit_amount: i.price?.unit_amount,
-        currency: i.price?.currency
-      }))
-    })
-
-    const seats = stripeSub.items.data[0]?.quantity || 1
-    const unitAmount = stripeSub.items.data[0]?.price?.unit_amount || 0
+    const unitAmount = stripeSub.items?.data?.[0]?.price?.unit_amount || 0
     const currency = stripeSub.currency || 'usd'
 
-    // Calculate total amount (unit price * seats)
-    const totalAmount = unitAmount * seats / 100
     const amount = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency
-    }).format(totalAmount)
+    }).format(unitAmount / 100)
 
     const periodEnd = stripeSub.current_period_end
       ? new Date(stripeSub.current_period_end * 1000)
       : null
 
-    console.log('[Stripe Email] Calculated:', { seats, amount, periodEnd })
-
     return {
-      seats,
       amount,
       periodEnd
     }
@@ -238,9 +212,6 @@ async function buildSubscriptionEmailData(organizationId: string, subscription: 
 
   const subInfo = getSubscriptionInfo(subscription)
 
-  // Handle both DB subscription and Stripe API response formats
-  const seats = subscription.seats || subscription.quantity || subscription.items?.data?.[0]?.quantity || subInfo.seats
-
   // Get period end from various sources
   const periodEnd = subscription.periodEnd
     ? new Date(subscription.periodEnd)
@@ -259,13 +230,8 @@ async function buildSubscriptionEmailData(organizationId: string, subscription: 
   // Use helper functions that handle -no-trial suffix automatically
   const planResult = findPlanById(planId) || findPlanByPriceId(priceId)
 
-  // Pricing: base price (includes 1 seat) + additional seats × seat price
   const basePrice = planResult?.variant.price || 0
-  const seatPrice = planResult?.variant.seatPrice || 0
-  const additionalSeats = Math.max(0, seats - 1)
-  const totalAmount = basePrice + (additionalSeats * seatPrice)
-
-  const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'usd' }).format(totalAmount)
+  const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'usd' }).format(basePrice)
 
   return {
     info,
@@ -274,11 +240,7 @@ async function buildSubscriptionEmailData(organizationId: string, subscription: 
       name: info.owner.name,
       teamName: info.org.name,
       planName: subInfo.planName,
-      seats,
       billingCycle: subInfo.billingCycle,
-      basePrice: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'usd' }).format(basePrice),
-      additionalSeats,
-      seatPrice: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'usd' }).format(seatPrice),
       amount,
       nextBillingDate: periodEnd ? formatDate(periodEnd) : 'See billing portal',
       dashboardUrl: `${runtimeConfig.public.baseURL}/${info.org.slug}/dashboard`
@@ -299,13 +261,11 @@ export async function sendSubscriptionConfirmedEmail(organizationId: string, sub
 }
 
 /**
- * Send subscription updated email to org owner (for seat/plan changes)
+ * Send subscription updated email to org owner (for plan changes)
  */
 export async function sendSubscriptionUpdatedEmail(
   organizationId: string,
   subscription: any,
-  previousSeats?: number,
-  newSeats?: number,
   previousInterval?: string,
   newInterval?: string
 ): Promise<void> {
@@ -313,23 +273,12 @@ export async function sendSubscriptionUpdatedEmail(
   if (!data)
     return
 
-  // Build a custom message showing what changed
   let changeDescription = 'Your subscription update has been confirmed.'
 
-  // Check for seat changes
-  if (previousSeats !== undefined && newSeats !== undefined && previousSeats !== newSeats) {
-    if (newSeats > previousSeats) {
-      changeDescription = `You've added ${newSeats - previousSeats} seat${newSeats - previousSeats > 1 ? 's' : ''} (${previousSeats} → ${newSeats} seats).`
-    } else {
-      changeDescription = `You've removed ${previousSeats - newSeats} seat${previousSeats - newSeats > 1 ? 's' : ''} (${previousSeats} → ${newSeats} seats).`
-    }
-  }
-  // Check for plan interval changes
-  else if (previousInterval && newInterval && previousInterval !== newInterval) {
+  if (previousInterval && newInterval && previousInterval !== newInterval) {
     changeDescription = `You've switched from ${previousInterval} to ${newInterval} billing.`
   }
 
-  // Override the email data with the change description
   const emailData = {
     ...data.emailData,
     changeDescription
@@ -337,26 +286,6 @@ export async function sendSubscriptionUpdatedEmail(
 
   const html = await renderSubscriptionConfirmed(emailData)
   await sendEmail(data.info.owner.email, `Your ${data.subInfo.planName} subscription has been updated`, html)
-}
-
-/**
- * Send trial expired email to org owner
- */
-export async function sendTrialExpiredEmail(organizationId: string, subscription: any): Promise<void> {
-  const info = await getOrgOwnerInfo(organizationId)
-  if (!info)
-    return
-
-  const subInfo = getSubscriptionInfo(subscription)
-
-  const html = await renderTrialExpired({
-    name: info.owner.name,
-    teamName: info.org.name,
-    planName: subInfo.planName,
-    billingUrl: `${runtimeConfig.public.baseURL}/${info.org.slug}/billing`
-  })
-
-  await sendEmail(info.owner.email, `Your ${subInfo.planName} trial has expired`, html)
 }
 
 /**
@@ -384,40 +313,6 @@ export async function sendSubscriptionCanceledEmail(organizationId: string, subs
 }
 
 /**
- * Send trial started email to org owner
- */
-export async function sendTrialStartedEmail(organizationId: string, subscription: any): Promise<void> {
-  const info = await getOrgOwnerInfo(organizationId)
-  if (!info)
-    return
-
-  const subInfo = getSubscriptionInfo(subscription)
-
-  // Calculate trial end date
-  const trialEnd = subscription.trialEnd
-    ? new Date(subscription.trialEnd)
-    : subscription.trialEndDate
-      ? new Date(subscription.trialEndDate)
-      : null
-
-  // Get trial days from plan config
-  const planId = subscription.plan?.id || subscription.plan?.name
-  const planInfo = findPlanById(planId)
-  const trialDays = planInfo?.tier.trialDays || 14
-
-  const html = await renderTrialStarted({
-    name: info.owner.name,
-    teamName: info.org.name,
-    planName: subInfo.planName,
-    trialDays,
-    trialEndDate: trialEnd ? formatDate(trialEnd) : `in ${trialDays} days`,
-    dashboardUrl: `${runtimeConfig.public.baseURL}/${info.org.slug}/dashboard`
-  })
-
-  await sendEmail(info.owner.email, `Your ${trialDays}-day free trial has started`, html)
-}
-
-/**
  * Send subscription resumed email to org owner
  */
 export async function sendSubscriptionResumedEmail(organizationId: string, subscription: any): Promise<void> {
@@ -427,14 +322,10 @@ export async function sendSubscriptionResumedEmail(organizationId: string, subsc
 
   const subInfo = getSubscriptionInfo(subscription)
 
-  // Calculate amount based on seats and plan pricing
   const planPricing = getPlanPricing(subscription.plan)
   const basePrice = planPricing?.price || 0
-  const seatPrice = planPricing?.seatPrice || 0
-  const additionalSeats = Math.max(0, subInfo.seats - 1)
-  const totalAmount = basePrice + (additionalSeats * seatPrice)
-  const amount = totalAmount > 0
-    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'usd' }).format(totalAmount)
+  const amount = basePrice > 0
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'usd' }).format(basePrice)
     : subInfo.amount
 
   // Get period end from Stripe subscription or items
@@ -447,7 +338,6 @@ export async function sendSubscriptionResumedEmail(organizationId: string, subsc
     teamName: info.org.name,
     planName: subInfo.planName,
     billingCycle: subInfo.billingCycle,
-    seats: subInfo.seats,
     amount,
     nextBillingDate: periodEnd ? formatDate(periodEnd) : 'your next billing date',
     dashboardUrl: `${runtimeConfig.public.baseURL}/${info.org.slug}/dashboard`
@@ -500,7 +390,7 @@ export async function sendPaymentFailedEmail(customerId: string, amount?: number
  * Send subscription expired email to org owner
  * Triggered when subscription is deleted (grace period ended)
  */
-export async function sendSubscriptionExpiredEmail(organizationId: string, subscription: any, membersRemoved: number): Promise<void> {
+export async function sendSubscriptionExpiredEmail(organizationId: string, subscription: any): Promise<void> {
   console.log('[Email] Sending subscription expired email for org:', organizationId)
 
   const info = await getOrgOwnerInfo(organizationId)
@@ -515,7 +405,6 @@ export async function sendSubscriptionExpiredEmail(organizationId: string, subsc
     name: info.owner.name,
     teamName: info.org.name,
     planName: subInfo.planName,
-    membersRemoved,
     billingUrl: `${runtimeConfig.public.baseURL}/${info.org.slug}/billing`
   })
 

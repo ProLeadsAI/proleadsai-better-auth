@@ -18,10 +18,18 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { organizationId, newInterval, newTierKey } = body
 
-  if (!organizationId || !newInterval) {
+  if (!organizationId) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Missing required fields'
+    })
+  }
+
+  const targetInterval = (newInterval || 'month') as 'month' | 'year'
+  if (targetInterval !== 'month') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Only monthly billing is supported'
     })
   }
 
@@ -81,14 +89,14 @@ export default defineEventHandler(async (event) => {
 
   // Get user's current tier (pro, business, etc.)
   const currentTierKey = getPlanKeyFromId(localSub?.plan)
-  const currentInterval = localSub?.plan?.includes('year') ? 'year' : 'month'
+  const currentInterval = 'month'
 
   // Determine target tier: use newTierKey if provided, otherwise keep current tier
   const targetTierKey = (newTierKey && PLAN_TIERS[newTierKey as keyof typeof PLAN_TIERS])
     ? newTierKey
-    : (currentTierKey === 'free' ? 'pro' : currentTierKey)
+    : (currentTierKey === 'free' ? 'starter' : currentTierKey)
 
-  const newPlan = getTierForInterval(targetTierKey as Exclude<typeof targetTierKey, 'free'>, newInterval)
+  const newPlan = getTierForInterval(targetTierKey as Exclude<typeof targetTierKey, 'free'>, targetInterval)
   const newPriceId = newPlan.priceId
 
   if (currentPriceId === newPriceId) {
@@ -100,13 +108,11 @@ export default defineEventHandler(async (event) => {
   const targetTier = PLAN_TIERS[targetTierKey as keyof typeof PLAN_TIERS]
 
   const isUpgrade = !currentTier ||
-    (targetTier && targetTier.order > currentTier.order) ||
-    (targetTier?.order === currentTier?.order && newInterval === 'year' && currentInterval === 'month')
+    (targetTier && targetTier.order > currentTier.order)
 
   // For downgrades, schedule at period end instead of immediate
   const isDowngrade = currentTier && targetTier && (
-    targetTier.order < currentTier.order ||
-    (targetTier.order === currentTier.order && newInterval === 'month' && currentInterval === 'year')
+    targetTier.order < currentTier.order
   )
 
   const quantity = subscription.items.data[0].quantity
@@ -219,8 +225,8 @@ export default defineEventHandler(async (event) => {
 
   // Send updated email for plan change
   if (updatedSub.status === 'active') {
-    const previousInterval = localSub?.plan?.includes('year') ? 'yearly' : 'monthly'
-    const newIntervalLabel = newInterval === 'month' ? 'monthly' : 'yearly'
+    const previousInterval = currentInterval === 'month' ? 'monthly' : 'yearly'
+    const newIntervalLabel = targetInterval === 'month' ? 'monthly' : 'yearly'
     await sendSubscriptionUpdatedEmail(organizationId, updatedSub, undefined, undefined, previousInterval, newIntervalLabel)
   }
 

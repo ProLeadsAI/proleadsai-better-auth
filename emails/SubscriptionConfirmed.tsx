@@ -55,11 +55,7 @@ interface SubscriptionConfirmedProps {
   name: string
   teamName: string
   planName: string
-  seats: number
   billingCycle: 'monthly' | 'yearly'
-  basePrice: string
-  additionalSeats: number
-  seatPrice: string
   amount: string
   nextBillingDate: string
   dashboardUrl: string
@@ -71,11 +67,7 @@ export function SubscriptionConfirmed({
   name,
   teamName,
   planName,
-  seats,
   billingCycle,
-  basePrice,
-  additionalSeats,
-  seatPrice,
   amount,
   nextBillingDate,
   dashboardUrl,
@@ -126,43 +118,12 @@ export function SubscriptionConfirmed({
               </td>
             </tr>
             <tr>
-              <td style={labelCell}>Seats</td>
-              <td style={valueCell}>
-                {seats}
-                {' '}
-                {seats === 1 ? 'seat' : 'seats'}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <Text style={detailsTitle}>Cost Breakdown</Text>
-        <table style={detailsTable}>
-          <tbody>
-            <tr>
-              <td style={labelCell}>Base Plan (1 seat)</td>
-              <td style={valueCell}>{basePrice}</td>
-            </tr>
-            {additionalSeats > 0 && (
-              <tr>
-                <td style={labelCell}>
-                  Additional Seats (
-                  {additionalSeats}
-                  {' '}
-                  ×
-                  {seatPrice}
-                  )
-                </td>
-                <td style={valueCell}>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(additionalSeats * Number.parseFloat(seatPrice.replace(/[^0-9.]/g, '')))}</td>
-              </tr>
-            )}
-            <tr>
-              <td style={{ ...labelCell, fontWeight: '600', borderTop: '1px solid #e5e7eb', paddingTop: '12px' }}>
+              <td style={labelCell}>
                 Total per
                 {' '}
                 {billingCycle === 'monthly' ? 'month' : 'year'}
               </td>
-              <td style={{ ...valueCell, fontWeight: '600', borderTop: '1px solid #e5e7eb', paddingTop: '12px' }}>
+              <td style={valueCell}>
                 {amount}
               </td>
             </tr>

@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { addresses, leads, organization as organizationTable } from '~~/server/db/schema'
+import { consumeCredits } from '~~/server/utils/credits'
 import { useDB } from '~~/server/utils/db'
 import { decodeAddressFromGeocode } from '~~/server/utils/decodeAddressFromGeocode'
 import {
@@ -58,6 +59,15 @@ export default defineEventHandler(async (event) => {
   if (!org) {
     throw createError({ statusCode: 404, message: 'Organization not found' })
   }
+
+  // Consume credits for the search action (5 credits)
+  const searchAddress = address || [streetAddress, addressLocality, addressRegion].filter(Boolean).join(', ') || 'Address lookup'
+  await consumeCredits({
+    organizationId: orgId,
+    action: 'search',
+    description: `Roof estimate: ${searchAddress}`.slice(0, 200),
+    metadata: { address: searchAddress, lat, lng }
+  })
 
   // Use org's API keys for WordPress sources, fall back to server key for other sources
   const config = useRuntimeConfig()
@@ -218,12 +228,14 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error: any) {
     console.error('GET roof estimate error:', error)
-    return {
-      error: true,
-      sessionId,
-      toolSessionId,
+    throw createError({
       statusCode: error.statusCode || 500,
-      message: error.message || 'Failed to get roof estimate'
-    }
+      statusMessage: error.statusMessage || 'ROOF_ESTIMATE_FAILED',
+      message: error.message || 'Failed to get roof estimate',
+      data: {
+        sessionId,
+        toolSessionId
+      }
+    })
   }
 })

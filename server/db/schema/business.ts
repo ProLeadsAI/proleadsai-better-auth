@@ -22,6 +22,57 @@ const generateId = () => {
 }
 
 // ─────────────────────────────────────────────
+// Organization Usage (Credit Tracking)
+// ─────────────────────────────────────────────
+export const organizationUsage = pgTable('organization_usage', {
+  organizationId: text('organization_id')
+    .primaryKey()
+    .references(() => organization.id, { onDelete: 'cascade' }),
+  creditsUsed: integer('credits_used').default(0).notNull(),
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  updatedAt: timestamp('updated_at')
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull()
+})
+
+export const organizationUsageRelations = relations(organizationUsage, ({ one }) => ({
+  organization: one(organization, {
+    fields: [organizationUsage.organizationId],
+    references: [organization.id]
+  })
+}))
+
+export type OrganizationUsage = typeof organizationUsage.$inferSelect
+export type InsertOrganizationUsage = typeof organizationUsage.$inferInsert
+
+// ─────────────────────────────────────────────
+// Credit Activity (Usage Timeline)
+// ─────────────────────────────────────────────
+export const creditActivity = pgTable('credit_activity', {
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .references(() => organization.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(),
+  creditsCost: integer('credits_cost').notNull(),
+  description: text('description'),
+  metadata: json('metadata').$type<Record<string, any>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+})
+
+export const creditActivityRelations = relations(creditActivity, ({ one }) => ({
+  organization: one(organization, {
+    fields: [creditActivity.organizationId],
+    references: [organization.id]
+  })
+}))
+
+export type CreditActivity = typeof creditActivity.$inferSelect
+export type InsertCreditActivity = typeof creditActivity.$inferInsert
+
+// ─────────────────────────────────────────────
 // Leads
 // ─────────────────────────────────────────────
 export const leads = pgTable('leads', {

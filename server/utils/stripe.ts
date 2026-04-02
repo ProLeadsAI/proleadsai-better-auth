@@ -1,21 +1,18 @@
-import type { Subscription } from '@better-auth/stripe'
 import { stripe } from '@better-auth/stripe'
 import { and, eq } from 'drizzle-orm'
 import Stripe from 'stripe'
 import { member as memberTable, organization as organizationTable } from '~~/server/db/schema'
 import { PAID_TIERS } from '~~/shared/utils/plans'
 import { logAuditEvent } from './auditLogger'
+import { resetUsageFromSubscription } from './credits'
 import { useDB } from './db'
 import { runtimeConfig } from './runtimeConfig'
 import {
   sendPaymentFailedEmail,
   sendSubscriptionCanceledEmail,
   sendSubscriptionConfirmedEmail,
-  sendSubscriptionExpiredEmail,
-  sendTrialExpiredEmail,
-  sendTrialStartedEmail
+  sendSubscriptionExpiredEmail
 } from './stripeEmails'
-import { removeExcessMembersOnExpiration } from './subscription-handlers'
 
 /**
  * STRIPE ORGANIZATION BILLING IMPLEMENTATION
@@ -46,6 +43,8 @@ export const ensureStripeCustomer = async (organizationId: string) => {
   const client = createStripeClient()
   const db = await useDB()
 
+  console.log('[Stripe Debug] ensureStripeCustomer called for:', organizationId)
+
   const org = await db.query.organization.findFirst({
     where: eq(organizationTable.id, organizationId)
   })
@@ -54,9 +53,24 @@ export const ensureStripeCustomer = async (organizationId: string) => {
     throw new Error('Organization not found')
   }
 
-  // Check if customer already exists
+  console.log('[Stripe Debug] Organization found:', {
+    id: org.id,
+    name: org.name,
+    stripeCustomerId: org.stripeCustomerId
+  })
+
+  // Check if customer already exists in database AND Stripe
   if (org.stripeCustomerId) {
-    return { id: org.stripeCustomerId }
+    console.log('[Stripe Debug] Customer found in database:', org.stripeCustomerId)
+    try {
+      // Verify customer actually exists in Stripe
+      await client.customers.retrieve(org.stripeCustomerId)
+      console.log('[Stripe Debug] Customer verified in Stripe:', org.stripeCustomerId)
+      return { id: org.stripeCustomerId }
+    } catch (error) {
+      console.log('[Stripe Debug] Customer NOT found in Stripe, will create new one:', error.message)
+      // Customer exists in database but not in Stripe, continue to create new one
+    }
   }
 
   // Fetch Owner for email
@@ -148,59 +162,6 @@ export const addPaymentLog = async (action: string, subscription: any) => {
   })
 }
 
-export const syncSubscriptionQuantity = async (organizationId: string) => {
-  const db = await useDB()
-  const org = await db.query.organization.findFirst({
-    where: eq(organizationTable.id, organizationId),
-    with: {
-      members: true,
-      invitations: true
-    }
-  })
-
-  if (!org?.stripeCustomerId)
-    return
-
-  const client = createStripeClient()
-
-  // Find active subscription
-  const subscriptions = await client.subscriptions.list({
-    customer: org.stripeCustomerId,
-    status: 'active',
-    limit: 1
-  })
-
-  if (subscriptions.data.length === 0)
-    return
-
-  const subscription = subscriptions.data[0]
-  const currentQuantity = subscription.items.data[0].quantity
-
-  // Calculate new quantity
-  const memberCount = org.members.length
-  const inviteCount = org.invitations.filter(i => i.status === 'pending').length
-  const newQuantity = memberCount + inviteCount
-
-  if (currentQuantity !== newQuantity && newQuantity > 0) {
-    await client.subscriptions.update(subscription.id, {
-      items: [{
-        id: subscription.items.data[0].id,
-        quantity: newQuantity
-      }]
-    })
-
-    await logAuditEvent({
-      userId: undefined,
-      category: 'payment',
-      action: 'update_quantity',
-      targetType: 'subscription',
-      targetId: subscription.id,
-      status: 'success',
-      details: `Updated quantity from ${currentQuantity} to ${newQuantity}`
-    })
-  }
-}
-
 export const setupStripe = () => stripe({
   stripeClient: createStripeClient(),
   stripeWebhookSecret: runtimeConfig.stripeWebhookSecret,
@@ -266,7 +227,9 @@ export const setupStripe = () => stripe({
         // For write operations (POST, PUT, DELETE), only allow owners
         if (member.role === 'owner') {
           // Ensure Stripe Customer exists for the Organization before allowing action
+          console.log('[Stripe Debug] Calling ensureStripeCustomer for:', referenceId)
           await ensureStripeCustomer(referenceId)
+          console.log('[Stripe Debug] ensureStripeCustomer completed for:', referenceId)
           return true
         }
       }
@@ -274,134 +237,73 @@ export const setupStripe = () => stripe({
       return false
     },
     getCheckoutSessionParams: async ({ session, plan }, ctx) => {
-      // Try to find referenceId from the request body or session
       let customerId
       const body = ctx?.body as any
       const activeOrganizationId = (session as any)?.activeOrganizationId
 
       const targetOrgId = body?.referenceId || activeOrganizationId
-      let quantity = 1
+
+      console.log('[Stripe Debug] getCheckoutSessionParams:', {
+        activeOrganizationId,
+        targetOrgId,
+        bodyReferenceId: body?.referenceId,
+        planId: plan?.id
+      })
 
       if (targetOrgId) {
         const db = await useDB()
-        // We need to look up the org by ID
         const organization = await db.query.organization.findFirst({
-          where: eq(organizationTable.id, targetOrgId),
-          with: {
-            members: true,
-            invitations: true
-          }
+          where: eq(organizationTable.id, targetOrgId)
         })
-        if (organization) {
-          if (organization.stripeCustomerId) {
-            customerId = organization.stripeCustomerId
-          }
-          // Calculate quantity: Members + Pending Invites
-          // Default to 1 if count is 0 (should be at least 1 owner)
-          const memberCount = organization.members.length
-          const inviteCount = organization.invitations.filter(i => i.status === 'pending').length
-          const count = memberCount + inviteCount
-          quantity = count > 0 ? count : 1
-          console.log('[Stripe] Calculated Quantity:', quantity, 'Members:', memberCount, 'Invites:', inviteCount, 'Org:', targetOrgId)
+
+        console.log('[Stripe Debug] Organization found:', {
+          id: organization?.id,
+          name: organization?.name,
+          stripeCustomerId: organization?.stripeCustomerId
+        })
+
+        if (organization?.stripeCustomerId) {
+          customerId = organization.stripeCustomerId
+          console.log('[Stripe Debug] Using customer ID from database:', customerId)
+        } else {
+          console.log('[Stripe Debug] No customer ID found in database, will create new customer')
         }
       }
 
-      // Build checkout params
+      // Build checkout params (no per-seat billing)
       const params: any = {
-        customer: customerId, // Explicitly set the Org's customer ID
+        customer: customerId,
         allow_promotion_codes: true,
         line_items: [{
           price: plan.priceId,
-          quantity
+          quantity: 1
         }],
         tax_id_collection: {
           enabled: true
         },
         billing_address_collection: 'required',
         metadata: {
-          // Ensure metadata is preserved/set
           ...(body?.metadata || {}),
-          organizationId: targetOrgId // Explicitly add org ID to metadata
+          organizationId: targetOrgId
         }
       }
+
+      console.log('[Stripe Debug] Final checkout params:', {
+        customer: customerId,
+        planId: plan.id,
+        targetOrgId
+      })
 
       return { params }
     },
     plans: async () => {
-      // Generate plans dynamically from PLAN_TIERS
+      // Generate plans dynamically from PLAN_TIERS (no trials, no per-seat billing)
       const plans: any[] = []
 
       for (const tier of PAID_TIERS) {
-        // Monthly plan with trial
         plans.push({
           name: tier.monthly.id,
-          priceId: tier.monthly.priceId,
-          freeTrial: {
-            days: tier.trialDays,
-            onTrialStart: async (subscription: Subscription) => {
-              console.log(`[Stripe] ${tier.key} monthly onTrialStart fired:`, { referenceId: subscription.referenceId })
-              await addPaymentLog('trial_start', subscription)
-              if (subscription.referenceId) {
-                await sendTrialStartedEmail(subscription.referenceId, subscription)
-              }
-            },
-            onTrialEnd: async ({ subscription }: { subscription: Subscription }) => {
-              console.log(`[Stripe] ${tier.key} monthly onTrialEnd fired:`, { referenceId: subscription.referenceId, status: subscription.status })
-              await addPaymentLog('trial_end', subscription)
-              if (subscription.referenceId && subscription.status === 'active') {
-                console.log('[Stripe] Sending subscription confirmed email for trial end')
-                await sendSubscriptionConfirmedEmail(subscription.referenceId, subscription)
-              }
-            },
-            onTrialExpired: async (subscription: Subscription) => {
-              await addPaymentLog('trial_expired', subscription)
-              if (subscription.referenceId) {
-                await removeExcessMembersOnExpiration(subscription.referenceId)
-                await sendTrialExpiredEmail(subscription.referenceId, subscription)
-              }
-            }
-          }
-        })
-
-        // Yearly plan with trial
-        plans.push({
-          name: tier.yearly.id,
-          priceId: tier.yearly.priceId,
-          freeTrial: {
-            days: tier.trialDays,
-            onTrialStart: async (subscription: Subscription) => {
-              console.log(`[Stripe] ${tier.key} yearly onTrialStart fired:`, { referenceId: subscription.referenceId })
-              await addPaymentLog('trial_start', subscription)
-              if (subscription.referenceId) {
-                await sendTrialStartedEmail(subscription.referenceId, subscription)
-              }
-            },
-            onTrialEnd: async ({ subscription }: { subscription: Subscription }) => {
-              console.log(`[Stripe] ${tier.key} yearly onTrialEnd fired:`, { referenceId: subscription.referenceId, status: subscription.status })
-              await addPaymentLog('trial_end', subscription)
-              if (subscription.referenceId && subscription.status === 'active') {
-                console.log('[Stripe] Sending subscription confirmed email for trial end')
-                await sendSubscriptionConfirmedEmail(subscription.referenceId, subscription)
-              }
-            },
-            onTrialExpired: async (subscription: Subscription) => {
-              await addPaymentLog('trial_expired', subscription)
-              if (subscription.referenceId) {
-                await removeExcessMembersOnExpiration(subscription.referenceId)
-                await sendTrialExpiredEmail(subscription.referenceId, subscription)
-              }
-            }
-          }
-        })
-
-        // No-trial versions (for users who own multiple orgs)
-        plans.push({
-          name: `${tier.monthly.id}-no-trial`,
           priceId: tier.monthly.priceId
-        })
-        plans.push({
-          name: `${tier.yearly.id}-no-trial`,
-          priceId: tier.yearly.priceId
         })
       }
 
@@ -409,15 +311,10 @@ export const setupStripe = () => stripe({
     },
     onSubscriptionComplete: async ({ subscription }) => {
       await addPaymentLog('subscription_created', subscription)
-      // Sync customer name back to org name (in case payment method changed it)
       if (subscription.referenceId) {
         await syncStripeCustomerName(subscription.referenceId)
-        // Only send confirmation email if subscription has NO trial
-        // If there's a trial, emails are handled by onTrialStart (trial started) and onTrialEnd (confirmed/expired)
-        const hasTrial = subscription.trialStart || subscription.trialEnd || subscription.status === 'trialing'
-        if (!hasTrial) {
-          await sendSubscriptionConfirmedEmail(subscription.referenceId, subscription)
-        }
+        await resetUsageFromSubscription(subscription, subscription.referenceId)
+        await sendSubscriptionConfirmedEmail(subscription.referenceId, subscription)
       }
     },
     onSubscriptionUpdate: async ({ subscription }) => {
@@ -427,39 +324,23 @@ export const setupStripe = () => stripe({
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd
       })
       await addPaymentLog('subscription_updated', subscription)
-      // Sync customer name back to org name (in case payment method changed it)
       if (subscription.referenceId) {
         await syncStripeCustomerName(subscription.referenceId)
+        await resetUsageFromSubscription(subscription, subscription.referenceId)
 
-        // Check if this is a cancellation (cancel_at_period_end was just set to true)
-        // This happens when user clicks "Downgrade to Free"
         if (subscription.cancelAtPeriodEnd) {
           console.log('[Stripe] Subscription scheduled for cancellation, sending cancellation email')
           await sendSubscriptionCanceledEmail(subscription.referenceId, subscription)
         }
-
-        // Note: Confirmation emails are sent from onTrialEnd (trial → active)
-        // and onSubscriptionComplete (direct subscribe without trial)
-        // We don't send emails here to avoid duplicates on plan/seat changes
       }
     },
     onSubscriptionCancel: async ({ subscription }) => {
       await addPaymentLog('subscription_canceled', subscription)
-      if (subscription.referenceId) {
-        // Note: Cancellation email is sent from onSubscriptionUpdate when cancelAtPeriodEnd is set
-        // This hook fires for immediate cancellations, not scheduled ones
-        // Remove excess members when subscription is canceled
-        await removeExcessMembersOnExpiration(subscription.referenceId)
-      }
     },
     onSubscriptionDeleted: async ({ subscription }) => {
       await addPaymentLog('subscription_deleted', subscription)
-      // Remove excess members when subscription is deleted/expired
       if (subscription.referenceId) {
-        const result = await removeExcessMembersOnExpiration(subscription.referenceId)
-        const membersRemoved = result?.removedCount || 0
-        // Send subscription expired email
-        await sendSubscriptionExpiredEmail(subscription.referenceId, subscription, membersRemoved)
+        await sendSubscriptionExpiredEmail(subscription.referenceId, subscription)
       }
     }
   }

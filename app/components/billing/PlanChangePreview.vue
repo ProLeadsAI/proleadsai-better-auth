@@ -1,7 +1,6 @@
 <script setup lang="ts">
 interface PlanConfig {
   price: number
-  seatPrice: number
   interval: string
 }
 
@@ -57,18 +56,14 @@ const grossCharge = computed(() => {
 const currentTotal = computed(() => {
   if (!props.currentPlanConfig)
     return 0
-  const base = props.currentPlanConfig.price
-  const additional = Math.max(0, props.seats - 1)
-  return base + (additional * props.currentPlanConfig.seatPrice)
+  return props.currentPlanConfig.price
 })
 
 // Calculate new total cost
 const newTotal = computed(() => {
   if (!props.newPlanConfig)
     return 0
-  const base = props.newPlanConfig.price
-  const additional = Math.max(0, props.seats - 1)
-  return base + (additional * props.newPlanConfig.seatPrice)
+  return props.newPlanConfig.price
 })
 
 const intervalLabel = computed(() => {
@@ -160,7 +155,7 @@ const cardIcon = computed(() => {
 
         <!-- Yearly plan charge -->
         <div class="flex justify-between text-xs">
-          <span class="text-muted-foreground">Yearly plan ({{ seats }} seat{{ seats === 1 ? '' : 's' }}):</span>
+          <span class="text-muted-foreground">Yearly plan:</span>
           <span>${{ (grossCharge / 100).toFixed(2) }}</span>
         </div>
 
@@ -206,20 +201,9 @@ const cardIcon = computed(() => {
       <!-- New Plan Details -->
       <div class="text-xs text-muted-foreground space-y-1 px-1">
         <div class="font-medium text-foreground mb-2">
-          New Yearly Plan ({{ seats }} seat{{ seats === 1 ? '' : 's' }}):
+          New Yearly Plan:
         </div>
-        <div class="flex justify-between">
-          <span>Base Plan (1st Seat):</span>
-          <span>${{ (newPlanConfig?.price || 0).toFixed(2) }}/yr</span>
-        </div>
-        <div
-          v-if="seats > 1"
-          class="flex justify-between"
-        >
-          <span>Additional Seats ({{ seats - 1 }} × ${{ (newPlanConfig?.seatPrice || 0).toFixed(2) }}):</span>
-          <span>${{ ((seats - 1) * (newPlanConfig?.seatPrice || 0)).toFixed(2) }}/yr</span>
-        </div>
-        <div class="flex justify-between pt-1 border-t border-gray-200 dark:border-gray-700 font-medium text-foreground">
+        <div class="flex justify-between font-medium text-foreground">
           <span>Total:</span>
           <span>${{ newTotal.toFixed(2) }}/yr</span>
         </div>

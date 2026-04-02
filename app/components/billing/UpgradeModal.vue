@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PlanInterval, PlanKey } from '~~/shared/utils/plans'
+import type { PlanKey } from '~~/shared/utils/plans'
 import { getTierForInterval, PLAN_TIERS } from '~~/shared/utils/plans'
 
 const props = defineProps<{
@@ -16,25 +16,19 @@ const emit = defineEmits<{
 }>()
 
 const selectedTier = ref<Exclude<PlanKey, 'free'>>('pro')
-const selectedInterval = ref<'month' | 'year'>('month')
 const loading = ref(false)
 const toast = useToast()
 
 // Use shared payment status composable
-const { isPaymentFailed: hasPastDueSubscription, hasUsedTrial, organizationId } = usePaymentStatus()
+const { isPaymentFailed: hasPastDueSubscription, organizationId } = usePaymentStatus()
 
-// Get all available tiers sorted by order
 const availableTiers = computed(() => {
   return Object.values(PLAN_TIERS).sort((a, b) => a.order - b.order)
 })
 
-// Check if we have only one tier - if so, show monthly/yearly side by side
-const hasSingleTier = computed(() => availableTiers.value.length === 1)
-const singleTier = computed(() => hasSingleTier.value ? availableTiers.value[0] : null)
-
 // Get the selected plan config
 const selectedPlanConfig = computed(() => {
-  return getTierForInterval(selectedTier.value, selectedInterval.value)
+  return getTierForInterval(selectedTier.value, 'month')
 })
 
 // Open billing portal to fix payment
@@ -64,20 +58,14 @@ const title = computed(() => {
 })
 
 const description = computed(() => {
-  if (props.reason === 'create-org') {
-    return 'Unlock unlimited team members for this organization'
-  }
-  return 'Each additional team members require an extra seat.'
+  return 'Unlock more credits and features for your team'
 })
 
 const message = computed(() => {
-  if (props.reason === 'create-org') {
-    return 'The Free plan only allows 1 organization per user. Each additional organization under the same account require a Pro plan.'
-  }
   if (props.reason === 'invite') {
-    return 'The Free plan only allows 1 team member. Upgrade this organization to Pro to invite members and unlock additional features.'
+    return 'Upgrade to get more credits per month and unlock all features.'
   }
-  return 'The Free plan only allows 1 organization per user. Upgrade to Pro to unlock additional features for this organization.'
+  return 'Choose a plan to unlock more credits and features.'
 })
 
 async function handleUpgrade() {
@@ -93,17 +81,11 @@ async function handleUpgrade() {
     const orgSlug = activeOrg.value?.data?.slug || props.teamSlug || 't'
 
     // Use Better Auth subscription.upgrade with selected tier
-    let planId = selectedPlanConfig.value.id
-    if (hasUsedTrial.value) {
-      planId = `${planId}-no-trial`
-    }
+    const planId = selectedPlanConfig.value.id
 
     await client.subscription.upgrade({
       plan: planId,
       referenceId: props.organizationId,
-      metadata: {
-        quantity: 1
-      },
       successUrl: `${window.location.origin}/${orgSlug}/billing?upgraded=true`,
       cancelUrl: `${window.location.href}`
     })
@@ -192,44 +174,39 @@ async function handleUpgrade() {
           </div>
         </div>
 
-        <!-- Single Tier: Show Monthly/Yearly side by side -->
-        <div
-          v-if="hasSingleTier && singleTier"
-          class="grid grid-cols-1 md:grid-cols-2 gap-4"
-        >
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div
-            v-for="interval in (['month', 'year'] as PlanInterval[])"
-            :key="interval"
+            v-for="tier in availableTiers"
+            :key="tier.key"
             class="relative border rounded-xl p-5 cursor-pointer transition-all"
             :class="[
-              selectedInterval === interval
+              selectedTier === tier.key
                 ? 'border-primary ring-2 ring-primary bg-primary/5'
-                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600',
+              tier.order === 2 ? 'md:scale-[1.02]' : ''
             ]"
-            @click="selectedInterval = interval"
+            @click="selectedTier = tier.key as Exclude<PlanKey, 'free'>"
           >
-            <!-- Save Badge for Yearly -->
             <div
-              v-if="interval === 'year'"
+              v-if="tier.order === 2"
               class="absolute -top-3 left-1/2 -translate-x-1/2"
             >
-              <span class="px-3 py-1 text-xs font-bold bg-green-500 text-white rounded-full">
-                Save
+              <span class="px-3 py-1 text-xs font-bold bg-primary text-white rounded-full">
+                Most Popular
               </span>
             </div>
 
-            <!-- Header -->
             <div class="flex justify-between items-start mb-3">
               <div>
                 <h3 class="font-bold text-lg">
-                  {{ singleTier.name }} {{ interval === 'month' ? 'Monthly' : 'Yearly' }}
+                  {{ tier.name }}
                 </h3>
                 <p class="text-xs text-muted-foreground">
-                  {{ interval === 'month' ? 'Pay month-to-month' : 'Best value' }}
+                  {{ tier.key === 'starter' ? 'For small teams' : 'For growing businesses' }}
                 </p>
               </div>
               <UIcon
-                v-if="selectedInterval === interval"
+                v-if="selectedTier === tier.key"
                 name="i-lucide-check-circle"
                 class="w-6 h-6 text-primary"
               />
@@ -239,29 +216,23 @@ async function handleUpgrade() {
               />
             </div>
 
-            <!-- Price -->
             <div class="mb-4">
               <div class="flex items-baseline gap-1">
                 <span class="text-3xl font-bold">
-                  ${{ getTierForInterval(singleTier.key as Exclude<PlanKey, 'free'>, interval).price.toFixed(2) }}
+                  ${{ getTierForInterval(tier.key as Exclude<PlanKey, 'free'>, 'month').price.toFixed(2) }}
                 </span>
                 <span class="text-sm text-muted-foreground">
-                  / {{ interval === 'year' ? 'year' : 'month' }}
+                  / month
                 </span>
               </div>
               <p class="text-xs text-muted-foreground mt-1">
-                <span
-                  v-if="!hasUsedTrial"
-                  class="font-semibold text-green-600 dark:text-green-400"
-                >{{ singleTier.trialDays }}-day free trial • </span>
-                +${{ getTierForInterval(singleTier.key as Exclude<PlanKey, 'free'>, interval).seatPrice.toFixed(2) }}/seat
+                Unlimited team members
               </p>
             </div>
 
-            <!-- Features -->
             <ul class="space-y-2">
               <li
-                v-for="(feature, i) in singleTier.features"
+                v-for="(feature, i) in tier.features"
                 :key="i"
                 class="flex items-start gap-2 text-sm"
               >
@@ -274,113 +245,6 @@ async function handleUpgrade() {
             </ul>
           </div>
         </div>
-
-        <!-- Multiple Tiers: Show toggle + tier cards -->
-        <template v-else>
-          <!-- Billing Interval Toggle -->
-          <div class="flex justify-center mb-4">
-            <div class="inline-flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              <button
-                v-for="interval in (['month', 'year'] as PlanInterval[])"
-                :key="interval"
-                class="relative px-4 py-2 text-sm font-medium rounded-md transition-all"
-                :class="selectedInterval === interval
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'"
-                @click="selectedInterval = interval"
-              >
-                {{ interval === 'month' ? 'Monthly' : 'Yearly' }}
-                <span
-                  v-if="interval === 'year'"
-                  class="absolute -top-2 -right-2 px-1.5 py-0.5 text-[10px] font-bold bg-green-500 text-white rounded-full"
-                >
-                  Save
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Plan Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div
-              v-for="tier in availableTiers"
-              :key="tier.key"
-              class="relative border rounded-xl p-5 cursor-pointer transition-all"
-              :class="[
-                selectedTier === tier.key
-                  ? 'border-primary ring-2 ring-primary bg-primary/5'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600',
-                tier.order === 2 ? 'md:scale-[1.02]' : ''
-              ]"
-              @click="selectedTier = tier.key as Exclude<PlanKey, 'free'>"
-            >
-              <!-- Popular Badge -->
-              <div
-                v-if="tier.order === 2"
-                class="absolute -top-3 left-1/2 -translate-x-1/2"
-              >
-                <span class="px-3 py-1 text-xs font-bold bg-primary text-white rounded-full">
-                  Most Popular
-                </span>
-              </div>
-
-              <!-- Header -->
-              <div class="flex justify-between items-start mb-3">
-                <div>
-                  <h3 class="font-bold text-lg">
-                    {{ tier.name }}
-                  </h3>
-                  <p class="text-xs text-muted-foreground">
-                    {{ tier.key === 'pro' ? 'For small teams' : 'For growing businesses' }}
-                  </p>
-                </div>
-                <UIcon
-                  v-if="selectedTier === tier.key"
-                  name="i-lucide-check-circle"
-                  class="w-6 h-6 text-primary"
-                />
-                <div
-                  v-else
-                  class="w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-600"
-                />
-              </div>
-
-              <!-- Price -->
-              <div class="mb-4">
-                <div class="flex items-baseline gap-1">
-                  <span class="text-3xl font-bold">
-                    ${{ getTierForInterval(tier.key as Exclude<PlanKey, 'free'>, selectedInterval).price.toFixed(2) }}
-                  </span>
-                  <span class="text-sm text-muted-foreground">
-                    / {{ selectedInterval === 'year' ? 'year' : 'month' }}
-                  </span>
-                </div>
-                <p class="text-xs text-muted-foreground mt-1">
-                  <span
-                    v-if="!hasUsedTrial"
-                    class="font-semibold text-green-600 dark:text-green-400"
-                  >{{ tier.trialDays }}-day free trial • </span>
-                  +${{ getTierForInterval(tier.key as Exclude<PlanKey, 'free'>, selectedInterval).seatPrice.toFixed(2) }}/seat
-                </p>
-              </div>
-
-              <!-- Features -->
-              <ul class="space-y-2">
-                <li
-                  v-for="(feature, i) in tier.features"
-                  :key="i"
-                  class="flex items-start gap-2 text-sm"
-                >
-                  <UIcon
-                    name="i-lucide-check"
-                    class="w-4 h-4 text-green-500 mt-0.5 shrink-0"
-                  />
-                  <span class="text-muted-foreground">{{ feature }}</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </template>
       </div>
     </template>
 
@@ -395,7 +259,7 @@ async function handleUpgrade() {
       <UButton
         v-if="hasPastDueSubscription"
         label="Update Payment Method"
-        color="red"
+        color="error"
         icon="i-lucide-credit-card"
         :loading="loading"
         @click="openBillingPortal"
@@ -403,7 +267,7 @@ async function handleUpgrade() {
       <!-- Normal upgrade button -->
       <UButton
         v-else
-        :label="hasUsedTrial ? `Upgrade to ${PLAN_TIERS[selectedTier].name}` : `Start ${PLAN_TIERS[selectedTier].name} Trial`"
+        :label="`Upgrade to ${PLAN_TIERS[selectedTier].name}`"
         color="primary"
         :loading="loading"
         @click="handleUpgrade"

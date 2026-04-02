@@ -2,27 +2,26 @@
 // PLAN TIER SYSTEM
 // =============================================================================
 // Centralized plan definitions. To add a new tier:
-// 1. Add Stripe prices (monthly + yearly)
+// 1. Add Stripe prices (monthly only)
 // 2. Add tier to PLAN_TIERS below
 // 3. Update PlanKey type
 // See docs/PLANS_ARCHITECTURE.md for full guide
 // =============================================================================
 
-export type PlanKey = 'free' | 'pro'
+export type PlanKey = 'free' | 'starter' | 'pro'
 
 export type PlanVersion = 'v1' | 'v2' | 'v3' // Add new versions as needed
 
-export type PlanInterval = 'month' | 'year'
+export type PlanInterval = 'month'
 
 export interface PlanVariant {
   id: string
   priceId: string
   price: number
-  seatPrice: number
 }
 
 export interface FeatureLimits {
-  leads: number | null // null = unlimited
+  credits: number | null // null = unlimited, number = max credits per billing cycle
   sms: boolean
   stormMaps: boolean
   removeBranding: boolean
@@ -34,11 +33,27 @@ export interface PlanTier {
   name: string
   order: number // Higher = more premium (for sorting)
   monthly: PlanVariant
-  yearly: PlanVariant
-  trialDays: number
   features: string[]
   limits: FeatureLimits
 }
+
+// Credit Booster packs (one-time purchases that expire monthly)
+export interface CreditBooster {
+  id: string
+  name: string
+  credits: number
+  price: number
+  priceId: string
+  description: string
+}
+
+// All features are unlocked for every plan (including free)
+const ALL_FEATURES_UNLOCKED = {
+  sms: true,
+  stormMaps: true,
+  removeBranding: true,
+  apiAccess: true
+} as const
 
 // =============================================================================
 // ENVIRONMENT DETECTION
@@ -51,37 +66,46 @@ const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NUXT
 // =============================================================================
 
 const DEVELOPMENT_PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
-  pro: {
-    key: 'pro',
-    name: 'Pro (Dev)',
+  starter: {
+    key: 'starter',
+    name: 'Starter (Dev)',
     order: 1,
     monthly: {
-      id: 'pro-monthly-dev',
-      priceId: 'price_dev_monthly',
-      price: 0.99,
-      seatPrice: 0.50
+      id: 'starter-monthly-dev',
+      priceId: 'price_1TFQsGI7NgMAzxasqKnGITDZ',
+      price: 0.50
     },
-    yearly: {
-      id: 'pro-yearly-dev',
-      priceId: 'price_dev_yearly',
-      price: 9.99,
-      seatPrice: 4.99
-    },
-    trialDays: 365,
     features: [
-      'Full CRM Access & Rich Data',
-      'In-app Estimate Runner',
-      'Standalone Usage (No WP needed)',
-      'Unlimited Team Members',
-      'Priority Support',
+      '200 credits per month',
+      'All features included',
+      'Unlimited team members',
+      'API access',
       '🚧 Development Mode'
     ],
     limits: {
-      leads: null,
-      sms: false,
-      stormMaps: false,
-      removeBranding: true,
-      apiAccess: true
+      credits: 200,
+      ...ALL_FEATURES_UNLOCKED
+    }
+  },
+  pro: {
+    key: 'pro',
+    name: 'Pro (Dev)',
+    order: 2,
+    monthly: {
+      id: 'pro-monthly-dev',
+      priceId: 'price_dev_pro_monthly',
+      price: 0.99
+    },
+    features: [
+      '500 credits per month',
+      'All features included',
+      'Unlimited team members',
+      'Priority support',
+      '🚧 Development Mode'
+    ],
+    limits: {
+      credits: 500,
+      ...ALL_FEATURES_UNLOCKED
     }
   }
 }
@@ -89,41 +113,82 @@ const DEVELOPMENT_PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
 // =============================================================================
 // PRODUCTION PLAN DEFINITIONS
 // =============================================================================
+// TODO: Replace priceId values with your actual Stripe price IDs after creating
+// the Starter ($9/mo) and Pro ($19/mo) products in Stripe.
 
 const PRODUCTION_PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
+  starter: {
+    key: 'starter',
+    name: 'Starter',
+    order: 1,
+    monthly: {
+      id: 'starter-monthly-v1',
+      priceId: 'price_TODO_starter_monthly',
+      price: 9.00
+    },
+    features: [
+      '200 credits per month',
+      'All features included',
+      'Unlimited team members',
+      'API access'
+    ],
+    limits: {
+      credits: 200,
+      ...ALL_FEATURES_UNLOCKED
+    }
+  },
   pro: {
     key: 'pro',
     name: 'Pro',
-    order: 1,
+    order: 2,
     monthly: {
-      id: 'pro-monthly-v1',
-      priceId: 'price_1SoUmLRJPiME758uQNVGbdRG',
-      price: 29.99,
-      seatPrice: 4.99
+      id: 'pro-monthly-v2',
+      priceId: 'price_TODO_pro_monthly',
+      price: 19.00
     },
-    yearly: {
-      id: 'pro-yearly-v1',
-      priceId: 'price_1SoUn8RJPiME758uktj6epNf',
-      price: 290.00,
-      seatPrice: 50.00
-    },
-    trialDays: 14,
     features: [
-      'Full CRM Access & Rich Data',
-      'In-app Estimate Runner',
-      'Standalone Usage (No WP needed)',
-      'Unlimited Team Members',
-      'Priority Support'
+      '500 credits per month',
+      'All features included',
+      'Unlimited team members',
+      'Priority support'
     ],
     limits: {
-      leads: null,
-      sms: false,
-      stormMaps: false,
-      removeBranding: true,
-      apiAccess: false
+      credits: 500,
+      ...ALL_FEATURES_UNLOCKED
     }
   }
 }
+
+// =============================================================================
+// CREDIT BOOSTER PACKS (One-time purchases that expire monthly)
+// =============================================================================
+
+export const CREDIT_BOOSTERS: CreditBooster[] = [
+  {
+    id: 'booster-small',
+    name: 'Small Booster',
+    credits: 100,
+    price: 5.00,
+    priceId: 'price_TODO_booster_small',
+    description: 'Extra 100 credits for this month'
+  },
+  {
+    id: 'booster-medium',
+    name: 'Medium Booster',
+    credits: 250,
+    price: 10.00,
+    priceId: 'price_TODO_booster_medium',
+    description: 'Extra 250 credits for this month'
+  },
+  {
+    id: 'booster-large',
+    name: 'Large Booster',
+    credits: 500,
+    price: 20.00,
+    priceId: 'price_TODO_booster_large',
+    description: 'Extra 500 credits for this month'
+  }
+]
 
 // =============================================================================
 // ENVIRONMENT-SPECIFIC PLAN SELECTION
@@ -134,11 +199,8 @@ export const PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> =
 
 // Free tier limits (not in PLAN_TIERS since it's not purchasable)
 export const FREE_LIMITS: FeatureLimits = {
-  leads: isDevelopment ? 1000 : 5, // Generous dev limits
-  sms: !!isDevelopment,
-  stormMaps: !!isDevelopment,
-  removeBranding: !!isDevelopment,
-  apiAccess: !!isDevelopment
+  credits: isDevelopment ? 1000 : 60,
+  ...ALL_FEATURES_UNLOCKED
 }
 
 // =============================================================================
@@ -147,23 +209,17 @@ export const FREE_LIMITS: FeatureLimits = {
 // When you change pricing, add the OLD plan here before updating PLAN_TIERS.
 // This preserves pricing display for existing subscribers.
 // Key format: 'planId' (e.g., 'pro-monthly-v1')
-//
-// Example: If Pro was $14.99 and you're raising to $19.99:
-// 1. Add current v1 to LEGACY_PLAN_PRICING below
-// 2. Update PLAN_TIERS with new v2 prices and IDs
-// 3. Existing 'pro-monthly-v1' users see $14.99, new users see $19.99
 
 export interface LegacyPlanPricing {
   price: number
-  seatPrice: number
   tierKey: PlanKey
   interval: PlanInterval
   limits?: Partial<FeatureLimits> // Optional: override limits for this legacy plan
 }
 
 export const LEGACY_PLAN_PRICING: Record<string, LegacyPlanPricing> = {
-  // Add legacy plans here when you change pricing
-  // Example: 'pro-monthly-v1': { price: 19.99, seatPrice: 6.00, tierKey: 'pro', interval: 'month' },
+  // Old Pro plan before credit-based pricing (v1)
+  'pro-monthly-v1': { price: 29.99, tierKey: 'pro', interval: 'month', limits: { credits: 500 } }
 }
 
 // =============================================================================
@@ -171,42 +227,45 @@ export const LEGACY_PLAN_PRICING: Record<string, LegacyPlanPricing> = {
 // =============================================================================
 
 export function getTierVariant(tierKey: Exclude<PlanKey, 'free'>, interval: PlanInterval): PlanVariant {
-  const variantKey = interval === 'month' ? 'monthly' : 'yearly'
-  return PLAN_TIERS[tierKey][variantKey]
+  // Only monthly intervals are supported now
+  if (interval !== 'month') {
+    throw new Error(`Only monthly intervals are supported, got: ${interval}`)
+  }
+  return PLAN_TIERS[tierKey].monthly
 }
 
 export function getTierForInterval(tierKey: Exclude<PlanKey, 'free'>, interval: PlanInterval) {
+  // Only monthly intervals are supported now
+  if (interval !== 'month') {
+    throw new Error(`Only monthly intervals are supported, got: ${interval}`)
+  }
+
   const tier = PLAN_TIERS[tierKey]
-  const variantKey = interval === 'month' ? 'monthly' : 'yearly'
 
   if (!tier) {
     console.error(`[getTierForInterval] Tier '${tierKey}' not found in PLAN_TIERS. Available tiers:`, Object.keys(PLAN_TIERS))
-    // Fallback to 'pro' if tier not found
-    const fallbackTier = PLAN_TIERS.pro
-    const variant = fallbackTier[variantKey]
+    // Fallback to 'starter' if tier not found
+    const fallbackTier = PLAN_TIERS.starter
+    const variant = fallbackTier.monthly
     return {
       id: variant.id,
       priceId: variant.priceId,
       key: fallbackTier.key,
       interval,
-      label: interval === 'month' ? 'Monthly' : 'Yearly',
+      label: 'Monthly',
       price: variant.price,
-      seatPrice: variant.seatPrice,
-      trialDays: fallbackTier.trialDays,
       features: fallbackTier.features,
       limits: fallbackTier.limits
     }
   }
-  const variant = tier[variantKey]
+  const variant = tier.monthly
   return {
     id: variant.id,
     priceId: variant.priceId,
     key: tier.key,
     interval,
-    label: interval === 'month' ? 'Monthly' : 'Yearly',
+    label: 'Monthly',
     price: variant.price,
-    seatPrice: variant.seatPrice,
-    trialDays: tier.trialDays,
     features: tier.features,
     limits: tier.limits
   }
@@ -223,7 +282,7 @@ export const PAID_TIERS = Object.values(PLAN_TIERS).sort((a, b) => a.order - b.o
 export const ALL_PLAN_KEYS: PlanKey[] = ['free', ...PAID_TIERS.map(t => t.key)]
 
 /**
- * Normalize a plan ID by removing the -no-trial suffix
+ * Normalize a plan ID (strips legacy suffixes like -no-trial)
  */
 export function normalizePlanId(planId: string | null | undefined): string | null {
   if (!planId)
@@ -232,7 +291,7 @@ export function normalizePlanId(planId: string | null | undefined): string | nul
 }
 
 /**
- * Get plan key from a plan ID (e.g., 'pro-monthly-v1' -> 'pro')
+ * Get plan key from a plan ID (e.g., 'pro-monthly-v2' -> 'pro')
  * Checks legacy plans first, then current PLAN_TIERS
  */
 export function getPlanKeyFromId(planId: string | null | undefined): PlanKey {
@@ -250,13 +309,13 @@ export function getPlanKeyFromId(planId: string | null | undefined): PlanKey {
 
   // Check current PLAN_TIERS
   for (const tier of Object.values(PLAN_TIERS)) {
-    if (tier.monthly.id === normalizedId || tier.yearly.id === normalizedId) {
+    if (tier.monthly.id === normalizedId) {
       return tier.key
     }
   }
 
   // Fallback: try to extract tier from plan ID pattern (e.g., 'pro-monthly-v1' -> 'pro')
-  const match = normalizedId.match(/^([a-z]+)-(?:monthly|yearly)-v\d+$/)
+  const match = normalizedId.match(/^([a-z]+)-monthly-v\d+$/)
   if (match && match[1]) {
     const possibleTier = match[1] as PlanKey
     if (possibleTier in PLAN_TIERS || possibleTier === 'free') {
@@ -346,7 +405,7 @@ export function isAtLeastTier(userPlanKey: PlanKey, requiredTierKey: PlanKey): b
 }
 
 /**
- * Find a plan by ID (handles -no-trial suffix automatically)
+ * Find a plan by ID
  * Returns { tier, variant, interval } or undefined
  */
 export function findPlanById(planId: string | null | undefined) {
@@ -357,7 +416,7 @@ export function findPlanById(planId: string | null | undefined) {
  * Get pricing for a plan ID, checking legacy pricing first
  * Use this for displaying costs to existing subscribers
  */
-export function getPlanPricing(planId: string | null | undefined): { price: number, seatPrice: number, tierKey: PlanKey, interval: PlanInterval } | undefined {
+export function getPlanPricing(planId: string | null | undefined): { price: number, tierKey: PlanKey, interval: PlanInterval } | undefined {
   const normalizedId = normalizePlanId(planId)
   if (!normalizedId)
     return undefined
@@ -373,7 +432,6 @@ export function getPlanPricing(planId: string | null | undefined): { price: numb
   if (variant) {
     return {
       price: variant.variant.price,
-      seatPrice: variant.variant.seatPrice,
       tierKey: variant.tier.key,
       interval: variant.interval
     }
@@ -403,15 +461,12 @@ export function findPlanByPriceId(priceId: string | null | undefined): { tier: P
     if (tier.monthly.priceId === priceId) {
       return { tier, variant: tier.monthly, interval: 'month' }
     }
-    if (tier.yearly.priceId === priceId) {
-      return { tier, variant: tier.yearly, interval: 'year' }
-    }
   }
   return undefined
 }
 
 /**
- * Get plan variant (monthly/yearly) by plan ID
+ * Get plan variant by plan ID
  */
 export function getPlanVariantById(planId: string | null | undefined): { tier: PlanTier, variant: PlanVariant, interval: PlanInterval } | undefined {
   const normalizedId = normalizePlanId(planId)
@@ -421,9 +476,6 @@ export function getPlanVariantById(planId: string | null | undefined): { tier: P
   for (const tier of Object.values(PLAN_TIERS)) {
     if (tier.monthly.id === normalizedId) {
       return { tier, variant: tier.monthly, interval: 'month' }
-    }
-    if (tier.yearly.id === normalizedId) {
-      return { tier, variant: tier.yearly, interval: 'year' }
     }
   }
   return undefined
@@ -439,9 +491,6 @@ export function getPlanByStripePriceId(priceId: string | null | undefined): { ti
   for (const [tierKey, tier] of Object.entries(PLAN_TIERS)) {
     if (tier.monthly.priceId === priceId) {
       return { tier, tierKey: tierKey as PlanKey, variant: tier.monthly, interval: 'month' }
-    }
-    if (tier.yearly.priceId === priceId) {
-      return { tier, tierKey: tierKey as PlanKey, variant: tier.yearly, interval: 'year' }
     }
   }
   return undefined
