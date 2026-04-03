@@ -7,6 +7,42 @@ import { resendInstance } from '~~/server/utils/drivers'
 import { renderLeadSubmitted } from '~~/server/utils/email'
 import { runtimeConfig } from '~~/server/utils/runtimeConfig'
 
+async function canUseLeadSubmissionGrace(db: Awaited<ReturnType<typeof useDB>>, organizationId: string, body: any) {
+  const toolSessionId = typeof body.toolSessionId === 'string' ? body.toolSessionId.trim() : ''
+  if (!toolSessionId)
+    return false
+
+  const existingSubmission = await db.query.submissions.findFirst({
+    where: and(
+      eq(submissions.organizationId, organizationId),
+      eq(submissions.toolSessionId, toolSessionId)
+    )
+  })
+
+  if (existingSubmission)
+    return false
+
+  const lead = await db.query.leads.findFirst({
+    where: and(
+      eq(leads.organizationId, organizationId),
+      eq(leads.toolSessionId, toolSessionId)
+    )
+  })
+
+  if (!lead)
+    return false
+
+  const searchedAddress = await db.query.addresses.findFirst({
+    where: and(
+      eq(addresses.organizationId, organizationId),
+      eq(addresses.leadId, lead.id)
+    ),
+    orderBy: [desc(addresses.createdAt)]
+  })
+
+  return Boolean(searchedAddress)
+}
+
 export default defineEventHandler(async (event) => {
   // Set CORS headers for external form submissions
   setResponseHeaders(event, {
@@ -50,13 +86,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Organization not found' })
   }
 
-  // Consume credits for the lead submission action (20 credits)
-  await consumeCredits({
-    organizationId: orgId,
-    action: 'lead_submit',
-    description: `Lead: ${body.name || body.email || body.formName || 'Form submission'}`.slice(0, 200),
-    metadata: { formName: body.formName, name: body.name, email: body.email }
-  })
+  // Allow one in-progress flow to finish even if the search consumed the last credits.
+  try {
+    await consumeCredits({
+      organizationId: orgId,
+      action: 'lead_submit',
+      description: `Lead: ${body.name || body.email || body.formName || 'Form submission'}`.slice(0, 200),
+      metadata: { formName: body.formName, name: body.name, email: body.email }
+    })
+  } catch (error: any) {
+    const isOutOfCredits = error?.statusCode === 403 && error?.statusMessage === 'OUT_OF_CREDITS'
+    if (!isOutOfCredits || !(await canUseLeadSubmissionGrace(db, orgId, body))) {
+      throw error
+    }
+  }
 
   // Build metadata with API key info if applicable
   const metadata = {

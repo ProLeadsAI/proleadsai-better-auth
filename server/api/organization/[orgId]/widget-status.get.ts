@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { organization as organizationTable } from '~~/server/db/schema'
 import { getCreditBalance } from '~~/server/utils/credits'
 import { useDB } from '~~/server/utils/db'
+import { CREDIT_COSTS } from '~~/shared/utils/credits'
 
 export default defineEventHandler(async (event) => {
   setResponseHeaders(event, {
@@ -29,12 +30,12 @@ export default defineEventHandler(async (event) => {
   }
 
   const balance = await getCreditBalance(orgId)
-  const widgetEnabled = balance.remaining === null || balance.remaining > 0
+  const widgetEnabled = balance.remaining === null || balance.remaining >= CREDIT_COSTS.search
 
   return {
     widgetEnabled,
     reason: widgetEnabled ? 'available' : 'out_of_credits',
-    message: widgetEnabled ? null : 'This widget is currently unavailable because this organization has no credits remaining.',
+    message: widgetEnabled ? null : 'This widget is currently unavailable because this organization does not have enough credits left to start a new search.',
     remaining: balance.remaining,
     limit: balance.limit,
     plan: balance.plan,
