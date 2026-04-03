@@ -1,11 +1,11 @@
 /**
  * WordPress Plugin Integration - Update Organization Settings
- * Updates Google Maps API key and price per sq ft
  */
 
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { member, organization } from '~~/server/db/schema'
 import { getDB } from '~~/server/utils/db'
+import { assertUserCanManageWordPressOrganization } from '~~/server/utils/wordpress'
 
 export default defineEventHandler(async (event) => {
   setResponseHeaders(event, {
@@ -30,34 +30,30 @@ export default defineEventHandler(async (event) => {
   }
 
   const userId = body.userId
+  const organizationId = body.organizationId || body.teamId
   const businessName = body.businessName
   const googleMapsApiKey = body.googleMapsApiKey
   const googleSolarApiKey = body.googleSolarApiKey
   const pricePerSq = body.pricePerSq
   const timezone = body.timezone
 
-  console.log('[WordPress] update-settings received:', { userId, businessName, googleMapsApiKey: googleMapsApiKey ? '***' : undefined, googleSolarApiKey: googleSolarApiKey ? '***' : undefined, pricePerSq, timezone })
-
   const db = getDB()
 
-  // Find user's WordPress organization using source column
-  const memberships = await db.select().from(member).where(eq(member.userId, userId))
-
-  if (!memberships.length) {
-    throw createError({ statusCode: 404, message: 'WordPress organization not found' })
+  let userOrgId = organizationId as string | null
+  if (userOrgId) {
+    await assertUserCanManageWordPressOrganization(db, userId, userOrgId)
   }
+  else {
+    const memberships = await db.query.member.findMany({
+      where: eq(member.userId, userId),
+      with: { organization: true }
+    })
 
-  let userOrgId: string | null = null
-  for (const m of memberships) {
-    const [org] = await db.select().from(organization).where(and(eq(organization.id, m.organizationId), eq(organization.source, 'wordpress'))).limit(1)
-    if (org) {
-      userOrgId = org.id
-      break
+    const manageableMembership = memberships.find(m => ['owner', 'admin'].includes(m.role))
+    if (!manageableMembership) {
+      throw createError({ statusCode: 404, message: 'Organization not found' })
     }
-  }
-
-  if (!userOrgId) {
-    throw createError({ statusCode: 404, message: 'WordPress organization not found' })
+    userOrgId = manageableMembership.organizationId
   }
 
   // Build update object
@@ -106,13 +102,9 @@ export default defineEventHandler(async (event) => {
   }
 
   if (Object.keys(updates).length > 0) {
-    console.log('[WordPress] Updating org', userOrgId, 'with:', updates)
     await db.update(organization)
       .set(updates)
       .where(eq(organization.id, userOrgId))
-    console.log('[WordPress] Update complete')
-  } else {
-    console.log('[WordPress] No updates to apply')
   }
 
   return {

@@ -1,11 +1,12 @@
 /**
- * WordPress Plugin Integration - Get User's WordPress Organization
- * Returns the user's existing WordPress org if they have one
+ * WordPress Plugin Integration - Get User's connectable organizations
+ * Returns organizations that can be connected to this WordPress site.
  */
 
-import { and, eq } from 'drizzle-orm'
-import { apiKey, member, organization, user } from '~~/server/db/schema'
+import { eq } from 'drizzle-orm'
+import { user } from '~~/server/db/schema'
 import { getDB } from '~~/server/utils/db'
+import { getUserConnectableWordPressOrganizations, normalizeWordPressSiteUrl } from '~~/server/utils/wordpress'
 
 export default defineEventHandler(async (event) => {
   setResponseHeaders(event, {
@@ -25,6 +26,7 @@ export default defineEventHandler(async (event) => {
 
   const query = getQuery(event)
   const userId = query.userId as string
+  const siteUrl = normalizeWordPressSiteUrl(query.siteUrl as string || '')
 
   if (!userId) {
     throw createError({ statusCode: 400, message: 'userId is required' })
@@ -38,40 +40,19 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'User not found' })
   }
 
-  // Find user's memberships
-  const memberships = await db.select().from(member).where(eq(member.userId, userId))
-  if (!memberships.length) {
-    return { found: false, organization: null, hasApiKey: false }
-  }
+  const organizations = await getUserConnectableWordPressOrganizations(db, userId, siteUrl)
+  const autoConnectOrganization = organizations.find(org => org.isConnectedToCurrentSite)
+    || (organizations.filter(org => org.canConnect).length === 1
+      ? organizations.find(org => org.canConnect) || null
+      : null)
 
-  // Find WordPress org using source column
-  let wpOrg = null
-  for (const m of memberships) {
-    const [org] = await db.select().from(organization).where(and(eq(organization.id, m.organizationId), eq(organization.source, 'wordpress'))).limit(1)
-    if (org) {
-      wpOrg = org
-      break
-    }
-  }
-
-  if (!wpOrg) {
-    return { found: false, organization: null, hasApiKey: false }
-  }
-
-  // Check API key
-  const existingKeys = await db.select().from(apiKey).where(eq(apiKey.userId, userId)).limit(1)
+  const connectableOrganizations = organizations.filter(org => org.canConnect)
 
   return {
-    found: true,
-    organization: {
-      id: wpOrg.id,
-      name: wpOrg.name,
-      slug: wpOrg.slug,
-      googleMapsApiKey: wpOrg.googleMapsApiKey,
-      googleSolarApiKey: wpOrg.googleSolarApiKey,
-      pricePerSq: wpOrg.pricePerSq,
-      timezone: wpOrg.timezone
-    },
-    hasApiKey: existingKeys.length > 0
+    found: connectableOrganizations.length > 0,
+    siteUrl,
+    organizations: connectableOrganizations,
+    autoConnectOrganization,
+    requiresSelection: !autoConnectOrganization && connectableOrganizations.length > 1
   }
 })
