@@ -5,7 +5,8 @@
 
 import { createHash } from 'node:crypto'
 import { and, avg, count, countDistinct, desc, eq, gte, lte } from 'drizzle-orm'
-import { addresses, apiKey, contacts, leads, member, organization, submissions, subscription } from '~~/server/db/schema'
+import { addresses, apiKey, contacts, leads, member, organization, submissions } from '~~/server/db/schema'
+import { getCreditBalance } from '~~/server/utils/credits'
 import { getDB } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -76,11 +77,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Organization not found' })
   }
 
-  // Check subscription status to determine if user is Pro
-  // The status field from Stripe is the source of truth
-  const [sub] = await db.select().from(subscription).where(eq(subscription.referenceId, orgId)).limit(1)
-  const isPro = sub && (sub.status === 'active' || sub.status === 'trialing')
-
   // Get date range from query
   const query = getQuery(event)
   const startDate = query.startDate ? new Date(query.startDate as string) : null
@@ -97,7 +93,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Get counts in parallel
-  const [leadsCount, contactsCount, submissionsCount, addressesCount, avgEstimate, uniqueSessionsCount, recentAddresses, recentSubmissions] = await Promise.all([
+  const [leadsCount, contactsCount, submissionsCount, addressesCount, avgEstimate, uniqueSessionsCount, recentAddresses, recentSubmissions, creditBalance] = await Promise.all([
     db.select({ count: count() }).from(leads).where(buildDateFilter(leads)),
     db.select({ count: count() }).from(contacts).where(buildDateFilter(contacts)),
     db.select({ count: count() }).from(submissions).where(buildDateFilter(submissions)),
@@ -117,7 +113,8 @@ export default defineEventHandler(async (event) => {
       with: {
         addresses: true
       }
-    })
+    }),
+    getCreditBalance(orgId)
   ])
 
   // Generate a short user ID from sessionId (last 4 chars)
@@ -195,9 +192,8 @@ export default defineEventHandler(async (event) => {
           roofAreaSqFt: a.roofAreaSqFt,
           estimate: a.estimate,
           name: convertedTo?.name || null,
-          // Only include email/phone for Pro users
-          email: isPro ? (convertedTo?.email || null) : null,
-          phone: isPro ? (convertedTo?.phone || null) : null,
+          email: convertedTo?.email || null,
+          phone: convertedTo?.phone || null,
           // Include leadId for deep linking (from addresses.leadId)
           leadId: a.leadId || null,
           sessionId,
@@ -220,9 +216,8 @@ export default defineEventHandler(async (event) => {
           roofAreaSqFt: firstAddress?.roofAreaSqFt || null,
           estimate: firstAddress?.estimate || null,
           name: s.name,
-          // Only include email/phone for Pro users
-          email: isPro ? s.email : null,
-          phone: isPro ? s.phone : null,
+          email: s.email,
+          phone: s.phone,
           // Include leadId for deep linking (from the first address's leadId)
           leadId: firstAddress?.leadId || null,
           sessionId,
@@ -242,6 +237,10 @@ export default defineEventHandler(async (event) => {
     totalSearches: addressesCount[0]?.count ?? 0,
     uniqueUsers: uniqueSessionsCount[0]?.count ?? 0,
     avgEstimate: Math.round(Number(avgEstimate[0]?.avg) || 0),
+    creditsUsed: creditBalance.used,
+    creditsRemaining: creditBalance.remaining,
+    creditsLimit: creditBalance.limit,
+    creditUsagePercent: creditBalance.limit ? Math.min(100, Math.round((creditBalance.used / creditBalance.limit) * 100)) : 0,
     recentSearches: recentActivity
   }
 })

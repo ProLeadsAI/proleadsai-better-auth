@@ -11,6 +11,7 @@ import {
   assertUserCanManageWordPressOrganization,
   assertWordPressOrganizationConnectionAvailable,
   generateUniqueOrganizationSlug,
+  normalizeWordPressSiteUrl,
   rotateWordPressApiKey
 } from '~~/server/utils/wordpress'
 
@@ -39,7 +40,7 @@ export default defineEventHandler(async (event) => {
   const userId = body.userId as string
   const organizationId = body.organizationId?.trim?.() || ''
   const businessName = body.businessName?.trim?.() || ''
-  const siteUrl = body.siteUrl || ''
+  const siteUrl = normalizeWordPressSiteUrl(body.siteUrl || '')
 
   const db = getDB()
 
@@ -67,6 +68,7 @@ export default defineEventHandler(async (event) => {
       id: orgId,
       name: businessName,
       slug,
+      domainName: siteUrl || null,
       createdAt: new Date(),
       source: 'wordpress'
     })
@@ -85,6 +87,17 @@ export default defineEventHandler(async (event) => {
 
   if (!org) {
     throw createError({ statusCode: 500, message: 'Failed to create or connect organization' })
+  }
+
+  if (siteUrl && org.domainName !== siteUrl) {
+    await db.update(organization)
+      .set({ domainName: siteUrl })
+      .where(eq(organization.id, org.id))
+
+    org = {
+      ...org,
+      domainName: siteUrl
+    }
   }
 
   const apiKey = await rotateWordPressApiKey(db, userId, org.id, org.name, siteUrl)

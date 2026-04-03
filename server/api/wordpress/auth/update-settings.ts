@@ -5,7 +5,7 @@
 import { eq } from 'drizzle-orm'
 import { member, organization } from '~~/server/db/schema'
 import { getDB } from '~~/server/utils/db'
-import { assertUserCanManageWordPressOrganization } from '~~/server/utils/wordpress'
+import { assertUserCanManageWordPressOrganization, normalizeWordPressSiteUrl, syncWordPressApiKeySiteUrl } from '~~/server/utils/wordpress'
 
 export default defineEventHandler(async (event) => {
   setResponseHeaders(event, {
@@ -36,6 +36,7 @@ export default defineEventHandler(async (event) => {
   const googleSolarApiKey = body.googleSolarApiKey
   const pricePerSq = body.pricePerSq
   const timezone = body.timezone
+  const siteUrl = normalizeWordPressSiteUrl(body.siteUrl || body.domainName || '')
 
   const db = getDB()
 
@@ -101,11 +102,18 @@ export default defineEventHandler(async (event) => {
     updates.timezone = timezone
   }
 
+  if (siteUrl) {
+    updates.domainName = siteUrl
+  }
+
   if (Object.keys(updates).length > 0) {
     await db.update(organization)
       .set(updates)
       .where(eq(organization.id, userOrgId))
   }
+
+  if (siteUrl)
+    await syncWordPressApiKeySiteUrl(db, userOrgId, siteUrl)
 
   return {
     success: true,

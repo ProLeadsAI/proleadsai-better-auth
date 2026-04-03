@@ -5,7 +5,7 @@ import { requireOrgMembership } from '~~/server/utils/organization'
 // Default notification settings structure
 const defaultSettings = {
   newLeads: {
-    enabled: false,
+    enabled: true,
     roles: ['owner', 'admin'] as string[]
   }
 }

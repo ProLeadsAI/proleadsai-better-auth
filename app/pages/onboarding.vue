@@ -7,6 +7,8 @@ definePageMeta({
 
 const { user, organization, fetchSession } = useAuth()
 const toast = useToast()
+const router = useRouter()
+const checkingExistingOrg = ref(true)
 
 const { data: invitations } = await useAsyncData('user-invitations', async () => {
   return await $fetch('/api/auth/user/invitations', {
@@ -135,10 +137,39 @@ async function acceptInvite(inviteId: string, orgId?: string) {
     })
   }
 }
+
+onMounted(async () => {
+  try {
+    await fetchSession()
+    const { data: orgs } = await organization.list()
+
+    if (orgs && orgs.length > 0) {
+      await organization.setActive({ organizationId: orgs[0].id })
+      await fetchSession()
+      await router.replace(`/${orgs[0].slug}/dashboard`)
+    }
+  } catch (e) {
+    console.error('Failed to resolve existing organizations during onboarding:', e)
+  } finally {
+    checkingExistingOrg.value = false
+  }
+})
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
+  <div
+    v-if="checkingExistingOrg"
+    class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4"
+  >
+    <UIcon
+      name="i-lucide-loader-2"
+      class="w-8 h-8 animate-spin text-primary"
+    />
+  </div>
+  <div
+    v-else
+    class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4"
+  >
     <UCard class="max-w-md w-full">
       <div class="text-center mb-8">
         <div class="mx-auto bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mb-4">

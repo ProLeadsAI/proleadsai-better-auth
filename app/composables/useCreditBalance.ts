@@ -1,4 +1,5 @@
 import { CREDIT_COSTS } from '~~/shared/utils/credits'
+import { FREE_LIMITS } from '~~/shared/utils/plans'
 
 interface CreditBalance {
   used: number
@@ -10,9 +11,34 @@ interface CreditBalance {
 }
 
 export function useCreditBalance() {
-  const { useActiveOrganization } = useAuth()
+  const route = useRoute()
+  const { organization, session, useActiveOrganization } = useAuth()
   const activeOrg = useActiveOrganization()
-  const organizationId = computed(() => activeOrg.value?.data?.id)
+  const { data: organizations } = useLazyAsyncData('user-organizations', async () => {
+    const { data } = await organization.list()
+    return data
+  }, {
+    getCachedData: () => undefined
+  })
+
+  const organizationId = computed(() => {
+    const activeOrgId = activeOrg.value?.data?.id
+    if (activeOrgId)
+      return activeOrgId
+
+    const routeSlug = route.params.slug as string | undefined
+    if (routeSlug && routeSlug !== 't' && organizations.value?.length) {
+      const matchedOrg = organizations.value.find((org: any) => org.slug === routeSlug)
+      if (matchedOrg?.id)
+        return matchedOrg.id
+    }
+
+    const sessionOrgId = (session.value as any)?.activeOrganizationId
+    if (sessionOrgId)
+      return sessionOrgId
+
+    return null
+  })
 
   // Credit balance
   const { data: balance, pending: balanceLoading, refresh: refreshBalance } = useFetch<CreditBalance>(
@@ -20,10 +46,17 @@ export function useCreditBalance() {
     {
       query: { organizationId },
       watch: [organizationId],
-      immediate: true,
-      default: () => ({ used: 0, limit: null, remaining: null, periodStart: null, periodEnd: null, plan: 'free' })
+      immediate: false,
+      default: () => ({ used: 0, limit: FREE_LIMITS.credits, remaining: FREE_LIMITS.credits, periodStart: null, periodEnd: null, plan: 'free' })
     }
   )
+
+  watch(organizationId, (orgId) => {
+    if (orgId)
+      refreshBalance()
+  }, { immediate: true })
+
+  const isResolvingOrganization = computed(() => !organizationId.value)
 
   // Derived values
   const used = computed(() => balance.value?.used ?? 0)
@@ -89,7 +122,7 @@ export function useCreditBalance() {
 
   return {
     balance,
-    balanceLoading,
+    balanceLoading: computed(() => balanceLoading.value || isResolvingOrganization.value),
     refreshBalance,
     used,
     limit,

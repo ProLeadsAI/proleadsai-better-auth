@@ -7,6 +7,7 @@ import { and, eq, like } from 'drizzle-orm'
 import { apiKey as apiKeyTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
 import { getAuthSession } from '~~/server/utils/auth'
 import { useDB } from '~~/server/utils/db'
+import { normalizeWordPressSiteUrl, parseWordPressApiKeyMetadata } from '~~/server/utils/wordpress'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -84,16 +85,21 @@ export default defineEventHandler(async (event) => {
       )
     )
 
+    let wordpressUrl = normalizeWordPressSiteUrl(org.domainName || '')
     const hasWordPressIntegration = candidateKeys.some((k: any) => {
-      if (!k.metadata)
-        return false
-      try {
-        const meta = typeof k.metadata === 'string' ? JSON.parse(k.metadata) : k.metadata
-        return meta?.source === 'wordpress' && meta?.organizationId === activeOrgId
-      } catch {
-        return false
-      }
+      const meta = parseWordPressApiKeyMetadata(k.metadata)
+      const isMatch = meta?.source === 'wordpress' && meta?.organizationId === activeOrgId
+      if (isMatch && !wordpressUrl)
+        wordpressUrl = normalizeWordPressSiteUrl(meta?.siteUrl || meta?.domainName || '')
+      return isMatch
     })
+
+    if (hasWordPressIntegration && wordpressUrl && wordpressUrl !== (org.domainName || '')) {
+      await db.update(organizationTable)
+        .set({ domainName: wordpressUrl })
+        .where(eq(organizationTable.id, activeOrgId))
+      org.domainName = wordpressUrl
+    }
 
     return {
       organization: {
@@ -101,7 +107,7 @@ export default defineEventHandler(async (event) => {
         integrations: {
           wordpress: {
             connected: hasWordPressIntegration,
-            url: org.domainName || null
+            url: wordpressUrl || null
           }
         }
       },

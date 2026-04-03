@@ -17,13 +17,19 @@ export function normalizeWordPressSiteUrl(input?: string | null) {
   if (!input)
     return ''
 
+  const trimmed = input.trim()
+  if (!trimmed)
+    return ''
+
   try {
-    const url = new URL(input)
+    const url = new URL(trimmed)
+    if (!['http:', 'https:'].includes(url.protocol))
+      return ''
     const pathname = url.pathname === '/' ? '' : url.pathname.replace(/\/+$/, '')
     return `${url.origin.toLowerCase()}${pathname}`
   }
   catch {
-    return input.trim().replace(/\/+$/, '').toLowerCase()
+    return ''
   }
 }
 
@@ -195,4 +201,28 @@ export async function rotateWordPressApiKey(db: Database, userId: string, organi
   })
 
   return rawKey
+}
+
+export async function syncWordPressApiKeySiteUrl(db: Database, organizationId: string, siteUrl?: string) {
+  const normalizedSiteUrl = normalizeWordPressSiteUrl(siteUrl)
+  const existingKeys = await db.select().from(apiKey)
+
+  for (const key of existingKeys) {
+    const metadata = parseWordPressApiKeyMetadata(key.metadata)
+    if (metadata?.source !== 'wordpress' || metadata.organizationId !== organizationId)
+      continue
+
+    await db.update(apiKey)
+      .set({
+        updatedAt: new Date(),
+        metadata: JSON.stringify({
+          ...metadata,
+          source: 'wordpress',
+          organizationId,
+          siteUrl: normalizedSiteUrl,
+          domainName: normalizedSiteUrl
+        })
+      })
+      .where(eq(apiKey.id, key.id))
+  }
 }

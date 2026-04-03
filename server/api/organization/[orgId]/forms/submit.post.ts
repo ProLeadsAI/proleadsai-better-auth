@@ -1,5 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm'
-import { addresses, leads, member, organization as organizationTable, submissions, subscription, user } from '~~/server/db/schema'
+import { addresses, leads, member, organization as organizationTable, submissions, user } from '~~/server/db/schema'
 import { validateApiKey } from '~~/server/utils/apiKeyAuth'
 import { consumeCredits } from '~~/server/utils/credits'
 import { useDB } from '~~/server/utils/db'
@@ -145,25 +145,17 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Send email notifications to org members (paid orgs only, notifications enabled)
+  // Send email notifications to org members when notifications are enabled.
   try {
-    // 1) paid org gate
-    const subs = await db.query.subscription.findMany({
-      where: eq(subscription.referenceId, orgId)
-    })
-    const hasActiveSub = subs.some((s: any) => s.status === 'active' || s.status === 'trialing')
-    if (!hasActiveSub) {
-      // free orgs: no email notifications
-      throw new Error('Org is not paid')
-    }
-
-    // 2) notification settings gate
-    let notifyEnabled = false
+    // Default to enabled so orgs receive lead emails unless they explicitly disable them.
+    let notifyEnabled = true
     let roleRecipients: string[] = ['owner', 'admin']
     if ((org as any).notificationSettings) {
       try {
         const parsed = JSON.parse((org as any).notificationSettings)
-        notifyEnabled = Boolean(parsed?.newLeads?.enabled)
+        if (typeof parsed?.newLeads?.enabled === 'boolean') {
+          notifyEnabled = parsed.newLeads.enabled
+        }
         if (Array.isArray(parsed?.newLeads?.roles)) {
           roleRecipients = parsed.newLeads.roles
         }

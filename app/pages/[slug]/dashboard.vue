@@ -3,10 +3,6 @@ const { user, useActiveOrganization } = useAuth()
 const router = useRouter()
 const route = useRoute()
 const activeOrg = useActiveOrganization()
-const { currentPlan } = usePaymentStatus()
-
-const isPro = computed(() => currentPlan.value === 'pro')
-const showUpgradeModal = ref(false)
 
 const wordpressIntegration = computed(() => {
   const integrations: any = (activeOrg.value?.data as any)?.integrations
@@ -58,13 +54,8 @@ const statCards = computed(() => [
   }
 ])
 
-// Handle stat card click - navigate for pro users, show upgrade modal for free users
 const handleStatClick = (stat: { to: string }) => {
-  if (isPro.value) {
-    router.push(stat.to)
-  } else {
-    showUpgradeModal.value = true
-  }
+  router.push(stat.to)
 }
 </script>
 
@@ -90,19 +81,6 @@ const handleStatClick = (stat: { to: string }) => {
         @click="handleStatClick(stat)"
       >
         <UCard class="transition-shadow hover:shadow-md relative">
-          <!-- Lock overlay for free users -->
-          <div
-            v-if="!isPro"
-            class="absolute inset-0 bg-neutral-100/50 dark:bg-neutral-800/50 backdrop-blur-[1px] rounded-lg flex items-center justify-center z-10"
-          >
-            <div class="flex items-center gap-1 text-sm text-neutral-500">
-              <UIcon
-                name="i-lucide-lock"
-                class="w-4 h-4"
-              />
-              <span>Upgrade to view</span>
-            </div>
-          </div>
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-neutral-500">
@@ -183,11 +161,5 @@ const handleStatClick = (stat: { to: string }) => {
         </div>
       </div>
     </UCard>
-
-    <!-- Upgrade Modal -->
-    <BillingUpgradeModal
-      v-model:open="showUpgradeModal"
-      :organization-id="activeOrg?.data?.id"
-    />
   </div>
 </template>

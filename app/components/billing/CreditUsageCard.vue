@@ -1,5 +1,14 @@
 <script setup lang="ts">
-const { used, limit, remaining, usagePercent, statusColor, isLow, isExhausted, refillDate, daysUntilRefill, organizationId, CREDIT_COSTS, balanceLoading } = useCreditBalance()
+const { used, limit, remaining, usagePercent, isLow, isExhausted, refillDate, daysUntilRefill, organizationId, CREDIT_COSTS, balanceLoading } = useCreditBalance()
+
+const progressBarClass = computed(() => {
+  if (isExhausted.value)
+    return 'bg-red-500'
+  if (isLow.value)
+    return 'bg-amber-500'
+
+  return 'bg-primary'
+})
 
 // Activity timeline
 const { data: activityData, pending: activityLoading } = useFetch<{
@@ -111,11 +120,13 @@ function timeAgo(dateStr: string) {
           v-if="limit !== null"
           class="space-y-2"
         >
-          <UProgress
-            :value="usagePercent"
-            :color="statusColor"
-            size="md"
-          />
+          <div class="h-2.5 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
+            <div
+              class="h-full rounded-full transition-[width] duration-300 ease-out"
+              :class="progressBarClass"
+              :style="{ width: `${usagePercent}%` }"
+            />
+          </div>
           <div class="flex justify-between text-xs text-muted-foreground">
             <span>{{ used }} used</span>
             <span>{{ limit }} total</span>

@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import { apiKey, member, organization, subscription, user } from '~~/server/db/schema'
 import { getDB } from '~~/server/utils/db'
+import { normalizeWordPressSiteUrl, parseWordPressApiKeyMetadata, syncWordPressApiKeySiteUrl } from '~~/server/utils/wordpress'
 
 export default defineEventHandler(async (event) => {
   setResponseHeaders(event, {
@@ -81,6 +82,15 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, message: 'Organization not found' })
     }
 
+    const metadata = parseWordPressApiKeyMetadata(foundKey.metadata)
+    const connectedSiteUrl = normalizeWordPressSiteUrl(org.domainName || metadata?.siteUrl || metadata?.domainName || '')
+
+    if (connectedSiteUrl && connectedSiteUrl !== (org.domainName || '')) {
+      await db.update(organization)
+        .set({ domainName: connectedSiteUrl })
+        .where(eq(organization.id, org.id))
+    }
+
     // Get user email from the API key owner
     let email = null
     if (foundKey.userId) {
@@ -106,7 +116,7 @@ export default defineEventHandler(async (event) => {
       googleSolarApiKey: org.googleSolarApiKey,
       pricePerSq: org.pricePerSq,
       timezone: org.timezone,
-      domainName: org.domainName,
+      domainName: connectedSiteUrl || null,
       isPro: !!isPro,
       plan: sub?.plan || 'free',
       subscriptionStatus: sub?.status || null
@@ -163,7 +173,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (body.domainName !== undefined) {
-      updates.domainName = body.domainName || null
+      updates.domainName = normalizeWordPressSiteUrl(body.domainName) || null
     }
 
     if (Object.keys(updates).length === 0) {
@@ -174,6 +184,9 @@ export default defineEventHandler(async (event) => {
       .set(updates)
       .where(eq(organization.id, orgId))
       .returning()
+
+    if (updates.domainName)
+      await syncWordPressApiKeySiteUrl(db, orgId, updates.domainName)
 
     return {
       success: true,
