@@ -188,6 +188,39 @@ export async function consumeCredits({
   await logCreditActivity(db, organizationId, action, cost, description, metadata)
 }
 
+export async function exhaustCreditsForGrace({
+  organizationId,
+  action,
+  description,
+  metadata
+}: {
+  organizationId: string
+  action: CreditAction
+  description?: string
+  metadata?: Record<string, any>
+}) {
+  const db = await useDB()
+  const sub = await getActiveSubscription(organizationId)
+  const planLimits = sub ? getPlanLimits(sub.plan) : FREE_LIMITS
+  const maxCredits = planLimits.credits
+
+  if (maxCredits === null) {
+    await logCreditActivity(db, organizationId, action, CREDIT_COSTS[action], description, metadata)
+    return
+  }
+
+  await ensureUsageRow(organizationId, sub)
+
+  await db.execute(
+    sql`UPDATE organization_usage
+        SET credits_used = ${maxCredits}, updated_at = NOW()
+        WHERE organization_id = ${organizationId}
+          AND credits_used < ${maxCredits}`
+  )
+
+  await logCreditActivity(db, organizationId, action, CREDIT_COSTS[action], description, metadata)
+}
+
 /**
  * Log a credit activity event for the timeline.
  */

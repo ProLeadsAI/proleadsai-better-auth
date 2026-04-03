@@ -1,7 +1,7 @@
 import { and, desc, eq } from 'drizzle-orm'
 import { addresses, leads, member, organization as organizationTable, submissions, user } from '~~/server/db/schema'
 import { validateApiKey } from '~~/server/utils/apiKeyAuth'
-import { consumeCredits } from '~~/server/utils/credits'
+import { consumeCredits, exhaustCreditsForGrace } from '~~/server/utils/credits'
 import { useDB } from '~~/server/utils/db'
 import { resendInstance } from '~~/server/utils/drivers'
 import { renderLeadSubmitted } from '~~/server/utils/email'
@@ -96,9 +96,22 @@ export default defineEventHandler(async (event) => {
     })
   } catch (error: any) {
     const isOutOfCredits = error?.statusCode === 403 && error?.statusMessage === 'OUT_OF_CREDITS'
-    if (!isOutOfCredits || !(await canUseLeadSubmissionGrace(db, orgId, body))) {
+    const canUseGrace = isOutOfCredits && await canUseLeadSubmissionGrace(db, orgId, body)
+    if (!canUseGrace) {
       throw error
     }
+
+    await exhaustCreditsForGrace({
+      organizationId: orgId,
+      action: 'lead_submit',
+      description: `Lead: ${body.name || body.email || body.formName || 'Form submission'}`.slice(0, 200),
+      metadata: {
+        formName: body.formName,
+        name: body.name,
+        email: body.email,
+        graceSubmission: true
+      }
+    })
   }
 
   // Build metadata with API key info if applicable
