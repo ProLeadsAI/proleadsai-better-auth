@@ -76,14 +76,14 @@ const DEVELOPMENT_PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
       price: 0.50
     },
     features: [
-      '200 credits per month',
+      '300 credits per month',
       'All features included',
       'Unlimited team members',
       'API access',
       '🚧 Development Mode'
     ],
     limits: {
-      credits: 200,
+      credits: 300,
       ...ALL_FEATURES_UNLOCKED
     }
   },
@@ -97,14 +97,14 @@ const DEVELOPMENT_PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
       price: 0.99
     },
     features: [
-      '500 credits per month',
+      '1000 credits per month',
       'All features included',
       'Unlimited team members',
       'Priority support',
       '🚧 Development Mode'
     ],
     limits: {
-      credits: 500,
+      credits: 1000,
       ...ALL_FEATURES_UNLOCKED
     }
   }
@@ -123,17 +123,17 @@ const PRODUCTION_PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
     order: 1,
     monthly: {
       id: 'starter-monthly-v1',
-      priceId: 'price_TODO_starter_monthly',
+      priceId: 'price_1TIIhJRJPiME758uxOLhR8Df',
       price: 9.00
     },
     features: [
-      '200 credits per month',
+      '300 credits per month',
       'All features included',
       'Unlimited team members',
       'API access'
     ],
     limits: {
-      credits: 200,
+      credits: 300,
       ...ALL_FEATURES_UNLOCKED
     }
   },
@@ -142,18 +142,18 @@ const PRODUCTION_PLAN_TIERS: Record<Exclude<PlanKey, 'free'>, PlanTier> = {
     name: 'Pro',
     order: 2,
     monthly: {
-      id: 'pro-monthly-v2',
-      priceId: 'price_TODO_pro_monthly',
+      id: 'pro-monthly-v1',
+      priceId: 'price_1TIIiURJPiME758u1xSUAxrE',
       price: 19.00
     },
     features: [
-      '500 credits per month',
+      '1000 credits per month',
       'All features included',
       'Unlimited team members',
       'Priority support'
     ],
     limits: {
-      credits: 500,
+      credits: 1000,
       ...ALL_FEATURES_UNLOCKED
     }
   }
