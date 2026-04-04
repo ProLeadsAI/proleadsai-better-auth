@@ -78,6 +78,7 @@ export const organization = pgTable('organization', {
   referralCode: text('referral_code'),
   // Business settings
   pricePerSq: integer('price_per_sq').default(350),
+  unlimitedCredits: boolean('unlimited_credits').default(false).notNull(),
   domainName: text('domain_name'),
   googleMapsApiKey: text('google_maps_api_key'),
   googleSolarApiKey: text('google_solar_api_key'),

@@ -23,6 +23,9 @@ export default defineEventHandler(async (event) => {
   if (body.pricePerSq !== undefined) {
     updateData.pricePerSq = Number(body.pricePerSq)
   }
+  if (body.unlimitedCredits !== undefined) {
+    updateData.unlimitedCredits = Boolean(body.unlimitedCredits)
+  }
   if (body.domainName !== undefined) {
     updateData.domainName = body.domainName || null
   }
@@ -47,6 +50,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     pricePerSq: updated.pricePerSq,
+    unlimitedCredits: updated.unlimitedCredits,
     domainName: updated.domainName,
     googleMapsApiKey: updated.googleMapsApiKey,
     googleSolarApiKey: updated.googleSolarApiKey,

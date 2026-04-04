@@ -20,6 +20,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     pricePerSq: org.pricePerSq ?? 350,
+    unlimitedCredits: org.unlimitedCredits ?? false,
     domainName: org.domainName ?? '',
     googleMapsApiKey: org.googleMapsApiKey ?? '',
     googleSolarApiKey: org.googleSolarApiKey ?? '',

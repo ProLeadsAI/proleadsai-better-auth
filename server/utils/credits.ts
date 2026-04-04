@@ -7,7 +7,7 @@
 
 import type { CreditAction } from '~~/shared/utils/credits'
 import { eq, sql } from 'drizzle-orm'
-import { creditActivity, organizationUsage, subscription as subscriptionTable } from '~~/server/db/schema'
+import { creditActivity, organization as organizationTable, organizationUsage, subscription as subscriptionTable } from '~~/server/db/schema'
 import { CREDIT_COSTS } from '~~/shared/utils/credits'
 import { FREE_LIMITS, getPlanLimits } from '~~/shared/utils/plans'
 import { useDB } from './db'
@@ -138,6 +138,15 @@ export async function consumeCredits({
 }) {
   const cost = CREDIT_COSTS[action]
   const db = await useDB()
+  const org = await db.query.organization.findFirst({
+    where: eq(organizationTable.id, organizationId)
+  })
+
+  if (org?.unlimitedCredits) {
+    await ensureUsageRow(organizationId, await getActiveSubscription(organizationId))
+    await logCreditActivity(db, organizationId, action, cost, description, metadata)
+    return
+  }
 
   // 1. Determine credit limit from subscription or free tier
   const sub = await getActiveSubscription(organizationId)
@@ -200,6 +209,15 @@ export async function exhaustCreditsForGrace({
   metadata?: Record<string, any>
 }) {
   const db = await useDB()
+  const org = await db.query.organization.findFirst({
+    where: eq(organizationTable.id, organizationId)
+  })
+
+  if (org?.unlimitedCredits) {
+    await logCreditActivity(db, organizationId, action, CREDIT_COSTS[action], description, metadata)
+    return
+  }
+
   const sub = await getActiveSubscription(organizationId)
   const planLimits = sub ? getPlanLimits(sub.plan) : FREE_LIMITS
   const maxCredits = planLimits.credits
@@ -294,6 +312,25 @@ async function ensureUsageRow(
  */
 export async function getCreditBalance(organizationId: string) {
   const db = await useDB()
+  const org = await db.query.organization.findFirst({
+    where: eq(organizationTable.id, organizationId)
+  })
+
+  if (org?.unlimitedCredits) {
+    await ensureUsageRow(organizationId, await getActiveSubscription(organizationId))
+    const usage = await db.query.organizationUsage.findFirst({
+      where: eq(organizationUsage.organizationId, organizationId)
+    })
+
+    return {
+      used: usage?.creditsUsed ?? 0,
+      limit: null,
+      remaining: null,
+      periodStart: usage?.periodStart ?? null,
+      periodEnd: usage?.periodEnd ?? null,
+      plan: 'free'
+    }
+  }
 
   const sub = await getActiveSubscription(organizationId)
   const planLimits = sub ? getPlanLimits(sub.plan) : FREE_LIMITS

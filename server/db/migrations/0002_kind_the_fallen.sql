@@ -1,0 +1,1 @@
+ALTER TABLE "organization" ADD COLUMN "unlimited_credits" boolean DEFAULT false NOT NULL;
