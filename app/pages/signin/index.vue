@@ -27,6 +27,13 @@ const redirectTo = computed(() => {
   return localePath('/')
 })
 
+const confirmationCallbackURL = computed(() => localePath({
+  path: '/account-confirmed',
+  query: {
+    redirect: redirectTo.value
+  }
+}))
+
 const schema = z.object({
   email: z.email(t('signIn.errors.invalidEmail')),
   password: z.string().min(8, t('signIn.errors.passwordLength', { min: 8 })),
@@ -102,7 +109,7 @@ async function handleResendEmail() {
   resendLoading.value = true
   const { error } = await auth.sendVerificationEmail({
     email: unverifiedEmail,
-    callbackURL: redirectTo.value
+    callbackURL: confirmationCallbackURL.value
   })
   if (error) {
     toast.add({

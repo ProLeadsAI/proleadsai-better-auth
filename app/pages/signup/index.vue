@@ -34,6 +34,13 @@ const redirectTo = computed(() => {
   return localePath(redirect || '/')
 })
 
+const confirmationCallbackURL = computed(() => localePath({
+  path: '/account-confirmed',
+  query: {
+    redirect: redirectTo.value
+  }
+}))
+
 const schema = z.object({
   name: z.string().min(5, t('signUp.form.name.error', { min: 5 })),
   email: z.email(t('signUp.form.email.error')),
@@ -75,7 +82,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     name: event.data.name,
     email: event.data.email,
     password: event.data.password,
-    referralCode: referralCode.value || undefined
+    referralCode: referralCode.value || undefined,
+    callbackURL: confirmationCallbackURL.value
   })
   if (error) {
     toast.add({

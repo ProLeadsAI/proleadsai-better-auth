@@ -15,6 +15,8 @@ export const generateRuntimeConfig = () => ({
     ? 'node-server'
     : process.env.NUXT_NITRO_PRESET,
   betterAuthSecret: process.env.NUXT_BETTER_AUTH_SECRET,
+  facebookCapiToken: process.env.FACEBOOK_CAPI_TOKEN,
+  facebookTestEventCode: process.env.FACEBOOK_TEST_EVENT_CODE,
   // Stripe
   stripeSecretKey: process.env.NUXT_STRIPE_SECRET_KEY,
   stripeWebhookSecret: process.env.NUXT_STRIPE_WEBHOOK_SECRET,
@@ -60,6 +62,7 @@ export const generateRuntimeConfig = () => ({
     appRepo: process.env.NUXT_APP_REPO,
     appNotifyEmail: process.env.NUXT_APP_NOTIFY_EMAIL,
     appContactEmail: process.env.NUXT_APP_CONTACT_EMAIL,
+    facebookPixelId: process.env.FACEBOOK_PIXEL_ID,
     googleMapsApiKeyPublic: process.env.NUXT_GOOGLE_MAPS_API_KEY_PUBLIC,
     payment: process.env.NUXT_PAYMENT || 'stripe',
     auth: {
