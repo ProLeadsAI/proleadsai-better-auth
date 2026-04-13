@@ -57,6 +57,7 @@ export const generateRuntimeConfig = () => ({
   } satisfies FileManagerConfig,
   public: {
     baseURL: process.env.NUXT_APP_URL,
+    widgetBaseUrl: process.env.NUXT_WIDGET_BASE_URL || 'https://widgets.proleadsai.com',
     appName: process.env.NUXT_APP_NAME,
     appEnv: process.env.NODE_ENV,
     appRepo: process.env.NUXT_APP_REPO,

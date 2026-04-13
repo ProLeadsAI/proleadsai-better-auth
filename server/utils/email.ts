@@ -4,6 +4,7 @@
 
 import { render } from '@react-email/render'
 import { DeleteAccount } from '../../emails/DeleteAccount'
+import { InstallInstructions } from '../../emails/InstallInstructions'
 import { LeadSubmitted } from '../../emails/LeadSubmitted'
 import { MagicLink } from '../../emails/MagicLink'
 import { PaymentFailed } from '../../emails/PaymentFailed'
@@ -110,4 +111,15 @@ export async function renderLeadSubmitted(options: {
   roofPrice?: number | null
 }): Promise<string> {
   return await render(LeadSubmitted({ ...options, appName: getAppName() }))
+}
+
+export async function renderInstallInstructions(options: {
+  recipientName?: string
+  organizationName: string
+  installMode: 'inline' | 'floating'
+  placementInstruction: string
+  iframeUrl: string
+  installCode: string
+}): Promise<string> {
+  return await render(InstallInstructions({ ...options, appName: getAppName() }))
 }

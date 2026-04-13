@@ -8,6 +8,7 @@
         "features": "Features",
         "pricing": "Pricing",
         "docs": "Documentation",
+        "install": "Install",
         "dashboard": "Dashboard"
       },
       "auth": {
@@ -38,6 +39,7 @@
         "features": "Funciones",
         "pricing": "Precios",
         "docs": "Documentación",
+        "install": "Instalar",
         "dashboard": "Panel"
       },
       "auth": {

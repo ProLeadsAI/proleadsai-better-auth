@@ -70,6 +70,11 @@ export const getUserMenus = (t: TranFunction, localePath: LocalePathFunction, sl
     to: localePath(`/${slug}/dashboard`)
   })
   items.push({
+    label: t('menu.install'),
+    icon: 'i-lucide-code-xml',
+    to: localePath(`/${slug}/install`)
+  })
+  items.push({
     label: 'Leads',
     icon: 'i-lucide-funnel',
     to: localePath(`/${slug}/leads`)
